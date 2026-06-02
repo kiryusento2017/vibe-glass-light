@@ -222,6 +222,42 @@ window.setState = function(s) {
   // s === 'off': 三灯全灰，已在上方重置
 };
 
+// ── 拖动（指针捕获，支持快速拖出窗口范围） ──────────────
+let dragging = false, lastSX = 0, lastSY = 0;
+
+pill.addEventListener('pointerdown', e => {
+  if (e.button !== 0) return;
+  pill.setPointerCapture(e.pointerId);
+  dragging = true;
+  lastSX = e.screenX; lastSY = e.screenY;
+  setPressed(true);
+  e.preventDefault();
+});
+
+pill.addEventListener('pointermove', e => {
+  if (!dragging) return;
+  const dx = e.screenX - lastSX;
+  const dy = e.screenY - lastSY;
+  lastSX = e.screenX; lastSY = e.screenY;
+  velX = dx * 16;
+  if (window.__dragMove) window.__dragMove(Math.round(dx), Math.round(dy));
+});
+
+pill.addEventListener('pointerup', e => {
+  if (!dragging) return;
+  pill.releasePointerCapture(e.pointerId);
+  dragging = false;
+  setPressed(false);
+  velX = 0;
+  if (window.__dragEnd) window.__dragEnd();
+});
+
+// ── 右键菜单 ──────────────────────────────────────────
+pill.addEventListener('contextmenu', e => {
+  e.preventDefault();
+  if (window.__contextMenu) window.__contextMenu();
+});
+
 // ── 启动 ─────────────────────────────────────────────
 window.addEventListener('load', () => {
   requestAnimationFrame(() => {
