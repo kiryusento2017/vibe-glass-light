@@ -1,162 +1,73 @@
 package watcher
 
 import (
-	"bufio"
 	"os"
-	"path/filepath"
-	"sync"
+	"strings"
 	"time"
+
 	"claude-traffic-light/state"
 )
 
+// Watcher 轮询 hook 写的状态文件，内容变化时回调。
+// 数据源是 Claude Code hook（PreToolUse/PostToolUse/UserPromptSubmit/Stop）
+// 实时写入的状态词，比解析 transcript 实时、准确。常亮：保持最后状态，不超时。
 type Watcher struct {
-	root     string
-	timeout  time.Duration
-	onChange func(state.State)
-	stop     chan struct{}
-	mu       sync.Mutex
-	sessions map[string]sessionInfo
-	last     state.State
+	statePath string
+	onChange  func(state.State)
+	stop      chan struct{}
+	last      state.State
 }
 
-type sessionInfo struct {
-	state   state.State
-	modTime time.Time
-}
-
-func New(root string, inactivityTimeout time.Duration, onChange func(state.State)) (*Watcher, error) {
-	os.MkdirAll(root, 0755)
+// New 创建状态文件监测器。statePath 是 hook 写、挂件读的状态文件路径。
+func New(statePath string, onChange func(state.State)) *Watcher {
 	return &Watcher{
-		root:     root,
-		timeout:  inactivityTimeout,
-		onChange: onChange,
-		stop:     make(chan struct{}),
-		sessions: make(map[string]sessionInfo),
-		last:     state.Grey,
-	}, nil
+		statePath: statePath,
+		onChange:  onChange,
+		stop:      make(chan struct{}),
+		last:      state.Grey,
+	}
 }
 
 func (w *Watcher) Stop() { close(w.stop) }
 
-// Watch polls every 250ms. Blocks — call in a goroutine.
+// Watch 每 100ms 读状态文件，内容变化时回调。阻塞 — 在 goroutine 里调。
 func (w *Watcher) Watch() {
-	tick := time.NewTicker(250 * time.Millisecond)
-	prune := time.NewTicker(10 * time.Second)
+	tick := time.NewTicker(100 * time.Millisecond)
 	defer tick.Stop()
-	defer prune.Stop()
-
-	w.scan()
-
+	w.poll()
 	for {
 		select {
 		case <-w.stop:
 			return
 		case <-tick.C:
-			w.scan()
-		case <-prune.C:
-			w.pruneExpired()
-			w.notify()
+			w.poll()
 		}
 	}
 }
 
-func (w *Watcher) scan() {
-	pattern := filepath.Join(w.root, "*/*.jsonl")
-	paths, _ := filepath.Glob(pattern)
-
-	w.mu.Lock()
-	defer w.mu.Unlock()
-
-	hadSessions := len(w.sessions) > 0
-
-	// Remove sessions whose files no longer exist
-	for path := range w.sessions {
-		found := false
-		for _, p := range paths {
-			if p == path {
-				found = true
-				break
-			}
-		}
-		if !found {
-			delete(w.sessions, path)
-		}
-	}
-
-	changed := false
-	for _, path := range paths {
-		info, err := os.Stat(path)
-		if err != nil {
-			continue
-		}
-		mod := info.ModTime()
-
-		// 跳过已超时的历史文件：启动即准，不被旧会话短暂误判
-		if time.Since(mod) > w.timeout {
-			continue
-		}
-
-		prev, exists := w.sessions[path]
-		if exists && prev.modTime == mod {
-			continue
-		}
-
-		s := parseFile(path)
-		w.sessions[path] = sessionInfo{state: s, modTime: mod}
-		changed = true
-	}
-
-	// Notify if state changed OR if we just lost all sessions
-	if changed || (hadSessions && len(w.sessions) == 0) {
-		w.notifyLocked()
-	}
-}
-
-func (w *Watcher) pruneExpired() {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	cutoff := time.Now().Add(-w.timeout)
-	for path, info := range w.sessions {
-		if info.modTime.Before(cutoff) {
-			delete(w.sessions, path)
-		}
-	}
-}
-
-func (w *Watcher) notify() {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	w.notifyLocked()
-}
-
-func (w *Watcher) notifyLocked() {
-	states := make([]state.State, 0, len(w.sessions))
-	for _, info := range w.sessions {
-		states = append(states, info.state)
-	}
-	s := state.Highest(states)
+func (w *Watcher) poll() {
+	s := w.read()
 	if s != w.last {
 		w.last = s
-		go w.onChange(s) // don't block under lock
+		w.onChange(s)
 	}
 }
 
-func parseFile(path string) state.State {
-	f, err := os.Open(path)
+// read 读状态文件并映射为四态。文件不存在=还没任何活动=灰；
+// 否则保持最后写入的状态（常亮，不超时变灰）。
+func (w *Watcher) read() state.State {
+	data, err := os.ReadFile(w.statePath)
 	if err != nil {
+		return state.Grey
+	}
+	switch strings.TrimSpace(string(data)) {
+	case "running":
+		return state.Red
+	case "thinking":
+		return state.Yellow
+	case "idle":
 		return state.Green
+	default:
+		return state.Grey
 	}
-	defer f.Close()
-	var lines []string
-	sc := bufio.NewScanner(f)
-	for sc.Scan() {
-		lines = append(lines, sc.Text())
-	}
-	return ParseLastState(lines)
-}
-
-// ClaudeProjectsPath returns the path to ~/.claude/projects/
-func ClaudeProjectsPath() string {
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".claude", "projects")
 }

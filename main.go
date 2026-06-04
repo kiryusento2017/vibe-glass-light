@@ -3,7 +3,6 @@ package main
 import (
 	"os"
 	"path/filepath"
-	"time"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
@@ -20,6 +19,13 @@ var (
 )
 
 func main() {
+	// hook 子命令模式：被 Claude Code 的 hook 调用，写状态文件后立即退出。
+	// 用法：claude-traffic-light.exe hook <running|thinking|idle>
+	if len(os.Args) >= 3 && os.Args[1] == "hook" {
+		writeHookState(os.Args[2])
+		return
+	}
+
 	// 单实例
 	mutexName, _ := windows.UTF16PtrFromString("Local\\ClaudeTrafficLight_SingleInstance")
 	_, _, errCode := procCreateMutexW.Call(0, 0, uintptr(unsafe.Pointer(mutexName)))
@@ -32,17 +38,25 @@ func main() {
 	cfgPath := filepath.Join(filepath.Dir(exePath), "config.json")
 	cfg, _ := config.Load(cfgPath)
 
+	// 自动把状态 hook 合并进 ~/.claude/settings.json（幂等、只增不删、先备份）
+	installHooks()
+
 	win := ui.New(cfgPath, cfg)
 
-	w, err := watcher.New(
-		watcher.ClaudeProjectsPath(),
-		60*time.Second,
-		func(s state.State) { win.SetState(s) },
-	)
-	if err == nil {
-		go w.Watch()
-		defer w.Stop()
-	}
+	w := watcher.New(hookStatePath(), func(s state.State) { win.SetState(s) })
+	go w.Watch()
+	defer w.Stop()
 
 	win.Run()
+}
+
+// hookStatePath 返回状态文件路径（hook 子命令写、挂件主进程读）。
+func hookStatePath() string {
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".claude", "agent-light-state")
+}
+
+// writeHookState 把状态词写入状态文件（hook 子命令用，极简快速、立即退出）。
+func writeHookState(s string) {
+	os.WriteFile(hookStatePath(), []byte(s), 0644)
 }
