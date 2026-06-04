@@ -88,7 +88,7 @@ Desktop Duplication 抓整屏桌面纹理(GPU常驻)
 不轮询 transcript（旧方案已废弃）。靠 Claude Code 的 4 个生命周期 hook 实时推送：挂件启动时 `installHooks` 把 hook 合并进 `~/.claude/settings.json`，每个 hook 调挂件自己 `claude-traffic-light.exe hook <state>`（**exec form**：`command`=exe 路径 + `args`，直接 spawn 不经 shell，避开 Windows「Git Bash or PowerShell」不确定性），写状态文件 `~/.claude/agent-light-state`；`watcher/` 每 100ms 读该文件映射四态。
 
 - 事件→状态：`UserPromptSubmit`/`PostToolUse`→thinking、`PreToolUse`→running、`Stop`→idle
-- **常亮**：状态文件保持最后值，永不超时熄灭（无 60s 灰）
+- **自动灭灯**：每 3s 用 `CreateToolhelp32Snapshot` 检测 `claude.exe` 进程，不在则切灰（关闭 Claude Code 后最多 3s 灭灯）
 - **单 exe**：hook handler 就是挂件自己，零外部依赖（不像 agent-light 要 node）
 - **安全合并**：幂等（已存在不重复加、路径变则更新）、先备份 `settings.json.bak`、只增不删别人的配置；靠 command 的 basename 识别「我加的那条」
 
