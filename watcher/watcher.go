@@ -10,12 +10,14 @@ import (
 
 // Watcher 轮询 hook 写的状态文件，内容变化时回调。
 // 数据源是 Claude Code hook（PreToolUse/PostToolUse/UserPromptSubmit/Stop）
-// 实时写入的状态词，比解析 transcript 实时、准确。常亮：保持最后状态，不超时。
+// 实时写入的状态词，比解析 transcript 实时、准确。
+// 每 3s 检查 Claude Code 进程是否还在——不在则切灰色。
 type Watcher struct {
 	statePath string
 	onChange  func(state.State)
 	stop      chan struct{}
 	last      state.State
+	tickN     int
 }
 
 // New 创建状态文件监测器。statePath 是 hook 写、挂件读的状态文件路径。
@@ -47,6 +49,10 @@ func (w *Watcher) Watch() {
 
 func (w *Watcher) poll() {
 	s := w.read()
+	w.tickN++
+	if w.tickN%30 == 0 && !isClaudeCodeRunning() {
+		s = state.Grey // 进程不在，强制灭灯
+	}
 	if s != w.last {
 		w.last = s
 		w.onChange(s)
