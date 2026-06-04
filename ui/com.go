@@ -78,6 +78,10 @@ const (
 	// IDCompositionTarget / IDCompositionVisual
 	vtDCompTargetSetRoot    = 3
 	vtDCompVisualSetContent = 15
+
+	// ID3DBlob
+	vtBlobGetBufferPointer = 3
+	vtBlobGetBufferSize    = 4
 )
 
 // DXGI / D3D11 枚举常量
@@ -160,6 +164,9 @@ type viewport struct{ TopLeftX, TopLeftY, Width, Height, MinDepth, MaxDepth floa
 var (
 	dcompDLL                     = syscall.NewLazyDLL("dcomp.dll")
 	procDCompositionCreateDevice = dcompDLL.NewProc("DCompositionCreateDevice")
+
+	d3dCompilerDLL = syscall.NewLazyDLL("d3dcompiler_47.dll")
+	procD3DCompile = d3dCompilerDLL.NewProc("D3DCompile")
 )
 
 // queryDXGIFactory 从 D3D11 device 取得 IDXGIDevice 以及 IDXGIFactory2。
@@ -230,4 +237,35 @@ func backBufferRTV(device, swapchain uintptr) (rtv uintptr, err error) {
 		return 0, fmt.Errorf("CreateRenderTargetView: 0x%X", uint32(hr))
 	}
 	return rtv, nil
+}
+
+// compileHLSL 用 D3DCompile 把 HLSL 源编译为指定入口/目标的字节码。
+func compileHLSL(src []byte, entry, target string) ([]byte, error) {
+	entryC := append([]byte(entry), 0)
+	targetC := append([]byte(target), 0)
+	var code, errMsg uintptr
+	hr, _, _ := procD3DCompile.Call(
+		uintptr(unsafe.Pointer(&src[0])), uintptr(len(src)),
+		0, 0, 0,
+		uintptr(unsafe.Pointer(&entryC[0])),
+		uintptr(unsafe.Pointer(&targetC[0])),
+		0, 0,
+		uintptr(unsafe.Pointer(&code)), uintptr(unsafe.Pointer(&errMsg)),
+	)
+	if failed(hr) {
+		msg := ""
+		if errMsg != 0 {
+			p := comCall(errMsg, vtBlobGetBufferPointer)
+			n := comCall(errMsg, vtBlobGetBufferSize)
+			msg = string(unsafe.Slice((*byte)(unsafe.Pointer(p)), int(n)))
+			comRelease(errMsg)
+		}
+		return nil, fmt.Errorf("D3DCompile(%s) 0x%X: %s", entry, uint32(hr), msg)
+	}
+	p := comCall(code, vtBlobGetBufferPointer)
+	n := comCall(code, vtBlobGetBufferSize)
+	bc := make([]byte, int(n))
+	copy(bc, unsafe.Slice((*byte)(unsafe.Pointer(p)), int(n)))
+	comRelease(code)
+	return bc, nil
 }

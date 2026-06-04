@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"errors"
 	"fmt"
 	"image"
 	"unsafe"
@@ -77,23 +76,28 @@ func newCapture(rdev, rctx uintptr) (*Capture, error) {
 		return nil, fmt.Errorf("CreateShaderResourceView: 0x%X", uint32(hr))
 	}
 
-	return &Capture{
+	c := &Capture{
 		dup: dup, gdev: gdev, gctx: gctx,
 		bounds: bounds, full: image.NewRGBA(bounds),
 		rctx: rctx, tex: tex, srv: srv,
 		buf: make([]byte, winW*winH*4),
-	}, nil
+	}
+	// 预热：抓一帧整屏填充缓存，避免首帧全黑（拖动时也从此缓存裁剪）
+	for i := 0; i < 10; i++ {
+		if c.dup.GetImage(c.full, 100) == nil {
+			break
+		}
+	}
+	return c, nil
 }
 
 // AcquireTexture 抓当前桌面帧，裁出 winRect 覆盖的那块上传到 GPU 纹理，返回 SRV。
 // ok=false 表示本帧无新画面（桌面静止时 duplication 不出帧），用上一帧 SRV 即可。
 func (c *Capture) AcquireTexture(winRect RECT) (srv uintptr, ok bool) {
-	if err := c.dup.GetImage(c.full, 0); err != nil {
-		if errors.Is(err, outputduplication.ErrNoImageYet) {
-			return c.srv, false
-		}
-		return c.srv, false // 其它错误也回退上一帧，不打断渲染
-	}
+	// 取新桌面帧；无新帧（桌面静止/拖动中）则沿用整屏缓存 c.full，
+	// 这样窗口移动时仍按当前位置裁剪、折射跟随，无需等新 duplication 帧，
+	// 拖动期间零整屏拷贝，顺滑。
+	_ = c.dup.GetImage(c.full, 0)
 
 	ox := int(winRect.Left) - c.bounds.Min.X
 	oy := int(winRect.Top) - c.bounds.Min.Y

@@ -177,19 +177,34 @@ func (w *Window) renderThread() {
 		return
 	}
 
-	// 半透明青蓝（premultiplied alpha），验证透明合成
-	col := [4]float32{0.08, 0.22, 0.40, 0.55}
+	// 建抓屏与折射渲染器；任一失败则降级为不渲染（Task 9 完善重试）
+	capt, err := newCapture(dev, dctx)
+	if err != nil {
+		return
+	}
+	defer capt.Release()
+	renderer, err := newRenderer(dev, dctx)
+	if err != nil {
+		return
+	}
+	defer renderer.Release()
+
 	first := true
 	for !w.closing.Load() {
-		comCall(dctx, vtCtxClearRTV, rtv, uintptr(unsafe.Pointer(&col)))
-		comCall(swapchain, vtSwapPresent, 0, 0)
+		var wr RECT
+		procGetWindowRect.Call(uintptr(w.hwnd), uintptr(unsafe.Pointer(&wr)))
+		srv, _ := capt.AcquireTexture(wr) // 桌面静止时复用上一帧 SRV
+		if srv != 0 {
+			renderer.Frame(rtv, srv)
+			comCall(swapchain, vtSwapPresent, 0, 0)
+		}
 		if first {
 			// 内容首帧呈现的此刻确保 topmost（DComp 异步呈现晚于 New 的提顶时机）
 			procSetWindowPos.Call(uintptr(w.hwnd), hwndTopmost, 0, 0, 0, 0,
 				swpNoMove|swpNoSize|swpNoActivate)
 			first = false
 		}
-		time.Sleep(16 * time.Millisecond)
+		time.Sleep(8 * time.Millisecond)
 	}
 }
 
