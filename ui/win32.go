@@ -24,6 +24,11 @@ var (
 	procSetTimer         = user32.NewProc("SetTimer")
 
 	// 样式 / 定位 / DPI
+	procSetCapture     = user32.NewProc("SetCapture")
+	procReleaseCapture = user32.NewProc("ReleaseCapture")
+	procSetCursor      = user32.NewProc("SetCursor")
+	procLoadCursorW    = user32.NewProc("LoadCursorW")
+
 	procSetWindowPos              = user32.NewProc("SetWindowPos")
 	procGetWindowRect             = user32.NewProc("GetWindowRect")
 	procGetSystemMetrics          = user32.NewProc("GetSystemMetrics")
@@ -63,15 +68,19 @@ const (
 	wmDestroy     = 0x0002
 	wmClose       = 0x0010
 	wmCommand     = 0x0111
-	wmNcHitTest   = 0x0084
-	wmRButtonUp   = 0x0205
+	wmMouseMove   = 0x0200
+	wmLButtonDown = 0x0201
 	wmLButtonUp   = 0x0202
+	wmSetCursor   = 0x0020
+	wmRButtonUp   = 0x0205
+	wmNcHitTest   = 0x0084
 	wmNcRButtonUp = 0x00A5
 	wmLButtonDblclk = 0x0203
 	wmTray        = 0x0400 + 1 // WM_APP-ish 自定义托盘回调
 	wmTimer       = 0x0113
 	htCaption = 2
 	htClient  = 1 // HTCLIENT：客户区，不可拖动（固定位置用）
+	idcArrow  = 32512
 
 	swHide           = 0
 	swShowNoActivate = 4

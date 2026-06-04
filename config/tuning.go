@@ -20,6 +20,17 @@ type Tuning struct {
 	LampR       float32 `json:"lampR"`       // 灯半径（像素）
 	LampGap     float32 `json:"lampGap"`     // 灯间距（像素，红↔黄、黄↔绿）
 	Glow        float32 `json:"glow"`        // 点亮外发光强度
+
+	// 弹簧形变物理（仅 Go 端用，不进 shader cbuffer）
+	SpringK        float32 `json:"springK"`        // 弹簧刚度（越大回复越快）
+	SpringC        float32 `json:"springC"`        // 弹簧阻尼（越小回弹越明显）
+	SteadyX        float32 `json:"steadyX"`        // 稳态水平缩放（<1=静止时稍窄）
+	SteadyY        float32 `json:"steadyY"`        // 稳态垂直缩放（>1=静止时稍长）
+	PressX         float32 `json:"pressX"`         // 按下时水平缩放（>1=按扁变宽）
+	PressY         float32 `json:"pressY"`         // 按下时垂直缩放（<1=按扁变矮）
+	DragK          float32 `json:"dragK"`          // 拖动速度→形变力度（越大拖得越快越窄）
+	DragMin        float32 `json:"dragMin"`        // 拖动形变下限（保护，0.5=最多缩窄到 50%）
+	ReleaseImpulse float32 `json:"releaseImpulse"` // 松手速度倍率（>1 强化过冲回弹）
 }
 
 // DefaultTuning 返回与 shader 原写死值一致的默认参数。
@@ -35,6 +46,15 @@ func DefaultTuning() Tuning {
 		LampR:       16,
 		LampGap:     64,
 		Glow:        0.5,
+		SpringK:    80,
+		SpringC:    5,
+		SteadyX:    0.96,
+		SteadyY:    1.06,
+		PressX:     0.94,
+		PressY:     1.07,
+		DragK:      0.001,
+		DragMin:    0.5,
+		ReleaseImpulse: 1.5,
 	}
 }
 

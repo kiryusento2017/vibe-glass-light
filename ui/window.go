@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
@@ -39,6 +40,21 @@ type Window struct {
 	tuningPath string // glass-tuning.json（exe 同目录，渲染线程热重载）
 	curState   atomic.Int32 // state.State
 	closing    atomic.Bool
+
+	// 自接管鼠标拖拽：取消系统 caption 拖动，自己监听按下/移动/松开，
+	// 为弹簧形变（第 4 步）提供按下/松开/速度事件。
+	dragStart  POINT // 拖拽起始光标坐标（屏幕像素）
+	winStart   POINT // 拖拽起始窗口位置（屏幕像素）
+	lastCursor POINT // 上一帧光标位置（算拖动速度用）
+	speedX     float32
+	speedY     float32
+	pressed    atomic.Bool
+
+	// 弹簧形变状态（主线程鼠标事件写，渲染线程每帧积分读；sync.Mutex 保护）
+	deformMu sync.Mutex
+	deform   [2]Spring // [0]=X轴(水平缩放) [1]=Y轴(垂直缩放)
+	// 弹簧参数（渲染线程热重载 tuning 时同步更新，鼠标事件只读）
+	pressX, pressY, steadyX, steadyY, dragK, dragMin, releaseImpulse float32
 }
 
 // New 创建挂件窗口并启动渲染线程。必须在将要跑消息循环的线程上调用。
@@ -53,6 +69,15 @@ func New(cfgPath string, cfg config.Config) *Window {
 		config.SaveTuning(w.tuningPath, config.DefaultTuning())
 	}
 	w.curState.Store(int32(state.Grey))
+	// 形变弹簧初始化为稳态（静止时的上下拉伸/左右变窄）
+	dt := config.DefaultTuning()
+	w.pressX, w.pressY = dt.PressX, dt.PressY
+	w.steadyX, w.steadyY = dt.SteadyX, dt.SteadyY
+	w.dragK = dt.DragK
+	w.dragMin = dt.DragMin
+	w.releaseImpulse = dt.ReleaseImpulse
+	w.deform[0] = Spring{K: dt.SpringK, C: dt.SpringC, Target: dt.SteadyX, Pos: dt.SteadyX}
+	w.deform[1] = Spring{K: dt.SpringK, C: dt.SpringC, Target: dt.SteadyY, Pos: dt.SteadyY}
 	theWindow = w
 
 	var hInst windows.Handle
@@ -127,27 +152,102 @@ func (w *Window) Run() {
 	w.closing.Store(true)
 }
 
-// wndProc 处理窗口消息。整窗作为拖动区（HTCAPTION）。
+// wndProc 处理窗口消息。自接管鼠标拖拽（取消系统 caption 拖动），获取按下/移动/松开
+// 事件以驱动弹簧形变；Locked 模式保留按压反馈但不挪窗。右键菜单改为客户区右键。
 func wndProc(hwnd, message, wParam, lParam uintptr) uintptr {
 	switch message {
 	case wmNcHitTest:
-		if theWindow.cfg.Locked {
-			return htClient // 固定位置：当作客户区，不可拖动
+		return htClient // 恒为客户区：取消系统拖动，由自接管鼠标处理
+
+	case wmSetCursor:
+		// DComp/NOREDIRECTIONBITMAP 窗上系统默认等待光标，强制箭头。
+		arrow, _, _ := procLoadCursorW.Call(0, idcArrow)
+		procSetCursor.Call(arrow)
+		return 1
+
+	case wmLButtonDown:
+		theWindow.pressed.Store(true)
+		var pt POINT
+		procGetCursorPos.Call(uintptr(unsafe.Pointer(&pt)))
+		theWindow.dragStart = pt
+		theWindow.lastCursor = pt
+		theWindow.speedX = 0
+		theWindow.speedY = 0
+		var wr RECT
+		procGetWindowRect.Call(hwnd, uintptr(unsafe.Pointer(&wr)))
+		theWindow.winStart = POINT{X: wr.Left, Y: wr.Top}
+		procSetCapture.Call(hwnd)
+		// 按软：横向胀、纵向扁
+		theWindow.deformMu.Lock()
+		theWindow.deform[0].Target = theWindow.pressX
+		theWindow.deform[1].Target = theWindow.pressY
+		theWindow.deformMu.Unlock()
+		return 0
+
+	case wmMouseMove:
+		if !theWindow.pressed.Load() {
+			break
 		}
-		return htCaption // 否则整窗可拖
+		var pt POINT
+		procGetCursorPos.Call(uintptr(unsafe.Pointer(&pt)))
+		dx := pt.X - theWindow.dragStart.X
+		dy := pt.Y - theWindow.dragStart.Y
+		// 拖动速度（像素/帧）→ 拖得越快越窄
+		theWindow.speedX = float32(pt.X - theWindow.lastCursor.X)
+		theWindow.speedY = float32(pt.Y - theWindow.lastCursor.Y)
+		theWindow.lastCursor = pt
+		sv := theWindow
+		speedMag := float32(math.Sqrt(float64(theWindow.speedX*theWindow.speedX + theWindow.speedY*theWindow.speedY)))
+		dragScale := 1.0 - speedMag*sv.dragK
+		if dragScale < sv.dragMin {
+			dragScale = sv.dragMin
+		}
+		theWindow.deformMu.Lock()
+		theWindow.deform[0].Target = sv.pressX * dragScale // 横向压扁后因拖动更窄
+		theWindow.deform[1].Target = sv.pressY / dragScale // 竖向补偿
+		theWindow.deformMu.Unlock()
+		if theWindow.cfg.Locked {
+			break // 锁定：不挪窗，但仍记下按压（视觉反馈保留）
+		}
+		nx := int(theWindow.winStart.X) + int(dx)
+		ny := int(theWindow.winStart.Y) + int(dy)
+		procSetWindowPos.Call(hwnd, 0, uintptr(nx), uintptr(ny), 0, 0,
+			swpNoSize|swpNoZOrder|swpNoActivate)
+		return 0
+
+	case wmLButtonUp:
+		theWindow.pressed.Store(false)
+		procReleaseCapture.Call()
+		// 松手：回到稳态 + 基于松开前速度给过冲冲量
+		theWindow.deformMu.Lock()
+		theWindow.deform[0].Target = theWindow.steadyX
+		theWindow.deform[0].Vel += theWindow.speedX * theWindow.releaseImpulse * 0.0005
+		theWindow.deform[1].Target = theWindow.steadyY
+		theWindow.deform[1].Vel += theWindow.speedY * theWindow.releaseImpulse * 0.0005
+		theWindow.deformMu.Unlock()
+		// 保存新位置
+		var wr RECT
+		procGetWindowRect.Call(hwnd, uintptr(unsafe.Pointer(&wr)))
+		theWindow.cfg.X, theWindow.cfg.Y = int(wr.Left), int(wr.Top)
+		config.Save(theWindow.cfgPath, theWindow.cfg)
+		return 0
+
+	case wmRButtonUp:
+		theWindow.showContextMenu()
+		return 0
+
 	case wmDestroy:
 		procPostQuitMessage.Call(0)
 		return 0
+
 	case wmTimer:
 		procSetWindowPos.Call(hwnd, hwndTopmost, 0, 0, 0, 0, swpNoMove|swpNoSize|swpNoActivate)
 		return 0
+
 	case wmTray:
 		if lParam == wmRButtonUp || lParam == wmLButtonUp {
 			theWindow.showContextMenu()
 		}
-		return 0
-	case wmNcRButtonUp:
-		theWindow.showContextMenu()
 		return 0
 	}
 	r, _, _ := procDefWindowProcW.Call(hwnd, message, wParam, lParam)
@@ -198,6 +298,7 @@ func (w *Window) renderThread() {
 	defer renderer.Release()
 
 	start := time.Now()
+	last := start
 	first := true
 	tun, _ := config.LoadTuning(w.tuningPath) // 视觉参数初值（不存在→默认）
 	reloadN := 0
@@ -208,8 +309,33 @@ func (w *Window) renderThread() {
 			reloadN = 0
 			if nt, err := config.LoadTuning(w.tuningPath); err == nil {
 				tun = nt
+				// 同步弹簧参数到主线程可读字段
+				w.deformMu.Lock()
+				w.pressX, w.pressY = nt.PressX, nt.PressY
+				w.steadyX, w.steadyY = nt.SteadyX, nt.SteadyY
+				w.dragK = nt.DragK
+				w.dragMin = nt.DragMin
+				w.releaseImpulse = nt.ReleaseImpulse
+				w.deform[0].K = nt.SpringK
+				w.deform[0].C = nt.SpringC
+				w.deform[1].K = nt.SpringK
+				w.deform[1].C = nt.SpringC
+				w.deformMu.Unlock()
 			}
 		}
+		// 形变弹簧每帧积分
+		w.deformMu.Lock()
+		now := time.Now()
+		dt := float32(now.Sub(last).Seconds())
+		if dt > 0.05 {
+			dt = 0.05 // 钳制：单帧不跳过 50ms（防止卡顿拉飞）
+		}
+		last = now
+		w.deform[0].Integrate(dt)
+		w.deform[1].Integrate(dt)
+		sx, sy := w.deform[0].Pos, w.deform[1].Pos
+		w.deformMu.Unlock()
+
 		var wr RECT
 		procGetWindowRect.Call(uintptr(w.hwnd), uintptr(unsafe.Pointer(&wr)))
 		srv, _ := capt.AcquireTexture(wr) // 桌面静止时复用上一帧 SRV
@@ -217,7 +343,7 @@ func (w *Window) renderThread() {
 			active := float32(w.curState.Load())
 			t := time.Since(start).Seconds()
 			blink := float32(0.5 + 0.5*math.Sin(2*math.Pi*t/0.85))
-			renderer.Frame(rtv, srv, active, blink, 1.0, 1.0, tun) // 第二步：形变恒 1（静止），视觉参数热重载
+			renderer.Frame(rtv, srv, active, blink, sx, sy, tun)
 			comCall(swapchain, vtSwapPresent, 0, 0)
 		}
 		if first {
