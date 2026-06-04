@@ -20,11 +20,23 @@ Windows 桌面液态玻璃红绿灯挂件，实时显示 [Claude Code](https://c
 ## 安装与使用
 
 1. 从 [Releases](../../releases) 下载 `claude-traffic-light.exe`
-2. 双击运行（首次启动自动在 `~/.claude/settings.json` 里安装状态 hook）
+2. 双击运行
 3. 打开 Claude Code，开始 vibe coding
 4. 右键挂件 → 菜单（隐藏/固定位置/退出）
 
-**如何调参**：编辑 exe 同目录的 `glass-tuning.json`（首次运行自动生成），保存即实时生效，无需重启。
+**调参**：编辑 exe 同目录的 `glass-tuning.json`，保存即实时生效。
+
+## 写入的文件
+
+首次运行及后续使用中，挂件会在以下位置读/写文件。**不会修改任何系统文件。**
+
+| 路径 | 内容 | 说明 |
+|---|---|---|
+| `~/.claude/settings.json` | 4 条 hook 规则 | 首次启动幂等写入（备份 → 合并 → 写回） |
+| `~/.claude/settings.json.bak` | 修改前的原文件 | 只在首次 hook 安装时创建一次 |
+| `~/.claude/agent-light-state` | 状态词（`idle`/`thinking`/`running`） | 每次 Claude Code hook 触发时覆盖写入 |
+| `./config.json` | 窗口位置 + 锁定/可见性 | 退出时保存，exe 同目录 |
+| `./glass-tuning.json` | 全部视觉与形变参数 | 首次运行自动生成，手工编辑热重载
 
 ## 架构
 
@@ -64,7 +76,6 @@ Hook 以 exec form 安装（`command`=exe 路径 + `args`，直接 spawn 不经 
 ```
 Desktop Duplication 抓整屏桌面纹理（GPU 常驻）
   → HLSL 超椭圆 SDF + shuding 折射核（中心清晰、边缘强折射）
-  → box blur / 高光 / 反射亮边 / 投影（可热调）
   → DXGI swapchain → DirectComposition 透明置顶窗
 WDA_EXCLUDEFROMCAPTURE 排除自身捕获，断开反馈循环
 ```
