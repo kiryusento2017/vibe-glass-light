@@ -61,7 +61,7 @@ func (w *Watcher) Watch() {
 }
 
 func (w *Watcher) scan() {
-	pattern := filepath.Join(w.root, "*/transcript.jsonl")
+	pattern := filepath.Join(w.root, "*/*.jsonl")
 	paths, _ := filepath.Glob(pattern)
 
 	w.mu.Lock()
@@ -90,6 +90,11 @@ func (w *Watcher) scan() {
 			continue
 		}
 		mod := info.ModTime()
+
+		// 跳过已超时的历史文件：启动即准，不被旧会话短暂误判
+		if time.Since(mod) > w.timeout {
+			continue
+		}
 
 		prev, exists := w.sessions[path]
 		if exists && prev.modTime == mod {
