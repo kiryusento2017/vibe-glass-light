@@ -16,6 +16,7 @@ type Renderer struct {
 	vs   uintptr
 	ps   uintptr
 	samp uintptr
+	cbuf uintptr // constant buffer：uActive + uBlink
 }
 
 // newRenderer 编译 glass.hlsl 并建立折射管线（用渲染 device dev / context ctx）。
@@ -60,12 +61,28 @@ func newRenderer(dev, ctx uintptr) (*Renderer, error) {
 		return nil, fmt.Errorf("CreateSamplerState: 0x%X", uint32(hr))
 	}
 
-	return &Renderer{ctx: ctx, vs: vs, ps: ps, samp: samp}, nil
+	// constant buffer：16 字节（uActive, uBlink, 2×pad），DEFAULT + UpdateSubresource
+	bd := bufferDesc{ByteWidth: 16, Usage: d3d11UsageDefault, BindFlags: d3d11BindCBuf}
+	var cbuf uintptr
+	if hr := comCall(dev, vtDevCreateBuffer,
+		uintptr(unsafe.Pointer(&bd)), 0, uintptr(unsafe.Pointer(&cbuf))); failed(hr) {
+		comRelease(samp)
+		comRelease(ps)
+		comRelease(vs)
+		return nil, fmt.Errorf("CreateBuffer(cbuf): 0x%X", uint32(hr))
+	}
+
+	return &Renderer{ctx: ctx, vs: vs, ps: ps, samp: samp, cbuf: cbuf}, nil
 }
 
-// Frame 把 desktopSRV 折射绘制到 rtv（全屏三角，3 顶点）。不 Present。
-func (r *Renderer) Frame(rtv, desktopSRV uintptr) {
+// Frame 把 desktopSRV 折射绘制到 rtv（全屏三角，3 顶点），叠加红绿灯。不 Present。
+// active: 0灰/1绿/2黄/3红；blink: 0~1 闪烁亮度。
+func (r *Renderer) Frame(rtv, desktopSRV uintptr, active, blink float32) {
 	ctx := r.ctx
+
+	params := [4]float32{active, blink, 0, 0}
+	comCall(ctx, vtCtxUpdateSubresource, r.cbuf, 0, 0,
+		uintptr(unsafe.Pointer(&params[0])), 0, 0)
 
 	vp := viewport{Width: winW, Height: winH, MaxDepth: 1}
 	comCall(ctx, vtCtxRSSetViewports, 1, uintptr(unsafe.Pointer(&vp)))
@@ -81,12 +98,15 @@ func (r *Renderer) Frame(rtv, desktopSRV uintptr) {
 	comCall(ctx, vtCtxPSSetShaderResources, 0, 1, uintptr(unsafe.Pointer(&srvs[0])))
 	samps := [1]uintptr{r.samp}
 	comCall(ctx, vtCtxPSSetSamplers, 0, 1, uintptr(unsafe.Pointer(&samps[0])))
+	cbufs := [1]uintptr{r.cbuf}
+	comCall(ctx, vtCtxPSSetConstantBuffers, 0, 1, uintptr(unsafe.Pointer(&cbufs[0])))
 
 	comCall(ctx, vtCtxDraw, 3, 0)
 }
 
 // Release 释放管线资源。
 func (r *Renderer) Release() {
+	comRelease(r.cbuf)
 	comRelease(r.samp)
 	comRelease(r.ps)
 	comRelease(r.vs)

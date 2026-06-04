@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"math"
 	"runtime"
 	"sync/atomic"
 	"syscall"
@@ -189,13 +190,17 @@ func (w *Window) renderThread() {
 	}
 	defer renderer.Release()
 
+	start := time.Now()
 	first := true
 	for !w.closing.Load() {
 		var wr RECT
 		procGetWindowRect.Call(uintptr(w.hwnd), uintptr(unsafe.Pointer(&wr)))
 		srv, _ := capt.AcquireTexture(wr) // 桌面静止时复用上一帧 SRV
 		if srv != 0 {
-			renderer.Frame(rtv, srv)
+			active := float32(w.curState.Load())
+			t := time.Since(start).Seconds()
+			blink := float32(0.5 + 0.5*math.Sin(2*math.Pi*t/0.85))
+			renderer.Frame(rtv, srv, active, blink)
 			comCall(swapchain, vtSwapPresent, 0, 0)
 		}
 		if first {

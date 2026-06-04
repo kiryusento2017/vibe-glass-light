@@ -8,6 +8,15 @@
 Texture2D    desktop : register(t0);
 SamplerState samp    : register(s0);
 
+cbuffer Params : register(b0) {
+    float uActive; // 0灰 1绿 2黄 3红
+    float uBlink;  // 0~1 闪烁亮度
+    float2 _pad;
+};
+
+static const float W = 250.0;
+static const float H = 88.0;
+
 struct VSOut {
     float4 pos : SV_Position;
     float2 uv  : TEXCOORD0;
@@ -28,6 +37,18 @@ float roundedRectSDF(float2 p, float2 half, float r) {
     return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - r;
 }
 
+// 叠加一个圆灯：圆盘半不透明覆盖（任何背景都清晰）+ 点亮时外发光 halo。
+// 熄灭留暗灯罩、点亮鲜亮灯色；core*0.9 保留一丝折射底色维持玻璃感。
+float3 addLamp(float3 base, float2 px, float2 ctr, float r, float3 col, float on) {
+    float dd   = length(px - ctr);
+    float core = smoothstep(r, r - 2.0, dd);   // 圆盘
+    float glow = smoothstep(r * 2.2, r, dd);   // 外发光范围
+    float3 body = lerp(col * 0.18, col * 1.35, on); // 熄灭暗罩 → 点亮鲜亮
+    float3 outc = lerp(base, body, core * 0.9);      // 圆盘内覆盖（不受背景影响）
+    outc += col * glow * 0.5 * on;                   // 点亮时外发光
+    return outc;
+}
+
 float4 PSMain(VSOut i) : SV_Target {
     float2 ip = i.uv - 0.5; // 居中，-0.5~0.5
 
@@ -46,6 +67,17 @@ float4 PSMain(VSOut i) : SV_Target {
     c = (c - 0.5) * 1.2 + 0.5;
     float g = dot(c, float3(0.299, 0.587, 0.114));
     c = lerp(float3(g, g, g), c, 1.1);
+    c = saturate(c);
+
+    // 三灯叠加（像素坐标算正圆，避免椭圆）。绿常亮、红/黄按 uBlink 闪、灰全灭
+    float2 px = i.uv * float2(W, H);
+    float r   = 16.0;
+    float onR = (uActive == 3.0) ? uBlink : 0.0;
+    float onY = (uActive == 2.0) ? uBlink : 0.0;
+    float onG = (uActive == 1.0) ? 1.0    : 0.0;
+    c = addLamp(c, px, float2(W * 0.5 - 64.0, H * 0.5), r, float3(0.910, 0.188, 0.165), onR);
+    c = addLamp(c, px, float2(W * 0.5,        H * 0.5), r, float3(0.941, 0.753, 0.251), onY);
+    c = addLamp(c, px, float2(W * 0.5 + 64.0, H * 0.5), r, float3(0.188, 0.753, 0.251), onG);
     c = saturate(c);
 
     // 圆角外透明，软边过渡；premultiplied alpha
