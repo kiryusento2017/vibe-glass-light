@@ -21,8 +21,8 @@ import (
 // 居中在画布里，多出的 margin 容纳形变（稳态拉伸 + 松手过冲）。两者须与
 // glass.hlsl 的 CANVAS 常量保持一致。
 const (
-	winW = 290
-	winH = 150
+	winW = 270
+	winH = 160
 )
 
 // theWindow 是当前唯一的挂件窗口（单实例由 main.go 的互斥保证）。
