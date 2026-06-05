@@ -30,27 +30,28 @@ C:\Open Source Projects\go\bin\go.exe test ./...
 ```
 main.go           — 入口：单实例互斥、加载配置、安装 hook、居中、启动 watcher 和窗口；含 hook 子命令模式
 hookinstall.go    — 把状态 hook 安全合并进 ~/.claude/settings.json（幂等/备份/只增不删）
-config/           — config.json 读写（窗口位置、穿透开关、可见性）
+config/           — config.json（窗口位置/锁定/可见/缩放）+ glass-tuning.json（视觉/形变参数）读写
 state/            — 四态枚举（Grey/Green/Yellow/Red）和优先级聚合
 watcher/          — 100ms 轮询 hook 写的状态文件，映射四态
 ui/               — 原生渲染与窗口管理（D3D11 + DComp + HLSL）
-  window.go       — DComp 透明置顶窗、消息循环、托盘/菜单/拖动/穿透/显隐、SetState
-  win32.go        — Win32 API 绑定（窗口样式、托盘、菜单、WDA syscall）
-  com.go          — 通用 comCall + D3D11/DXGI/DComp 绑定与初始化
-  capture.go      — Desktop Duplication 桌面纹理获取
-  render.go       — 渲染管线：device/swapchain/shader 编译 + 每帧绘制
+  window.go       — DComp 透明置顶窗、消息循环、托盘/菜单、自接管鼠标拖动（仅胶囊内响应）、SetState
+  win32.go        — Win32 API 绑定（窗口样式、托盘、菜单、comctl32 滑块、WDA syscall）
+  com.go          — 通用 comCall + D3D11/DXGI/DComp 绑定（含 swapchain ResizeBuffers）
+  capture.go      — Desktop Duplication 桌面纹理获取（支持随缩放 Resize）
+  render.go       — 渲染管线：device/swapchain/shader 编译 + 每帧绘制（动态 viewport）
   glass.hlsl      — 折射 + 红绿灯 shader（移植自 shuding/liquid-glass）
+  physics.go      — 二阶弹簧形变物理（Euler 积分驱动按压/拖动形变）
+  sizedialog.go   — 调整大小滑块窗（comctl32 trackbar，右键菜单触发，100%~2000% 无极缩放）
 ```
 
 > `config/`、`state/`、`watcher/` 有单元测试；`watcher/` 已改为 hook 状态文件驱动（见「状态探测」）；`ui/` 为方案2 原生渲染，已实现。
 
-### 当前进度（2026-06-04）
+### 当前进度（2026-06-05）
 
 - **方案2 已实现跑通**：DComp 透明置顶窗 + Desktop Duplication + 折射 shader + 四态红绿灯，实时折射真桌面、拖动顺滑、常亮。
 - **状态检测已切到 Claude Code Hooks**（见「状态探测」），替代旧 transcript 轮询。
+- **整体缩放**：右键菜单「调整大小…」弹 comctl32 滑块窗，100%~2000% 无极缩放（顶边固定、向下扩展），窗口/swapchain/桌面捕获动态 resize，`scale` 存 config.json 记忆；挂件本身不拖角缩放，缩放只走滑块窗。
 - **点击穿透暂不可行**：DComp/`NOREDIRECTIONBITMAP` 窗无法穿透（已坐实），折射优先、待收尾后重构。
-- **实现计划**：`docs/superpowers/plans/2026-06-03-native-liquid-glass.md`。
-- **spike 实证**：`_spike_capture/`（完工后删除）。
 
 ### 渲染方案（方案2，已锁定）
 
@@ -116,8 +117,9 @@ Desktop Duplication 抓整屏桌面纹理(GPU常驻)
 |------|------|
 | `settings.json` 不存在 | installHooks 创建只含 hook 的新文件 |
 | `settings.json` 已有 hook | 幂等：路径变则更新、未变则不写；别人的 hook 原样保留 |
-| HiDPI 125%/150% | manifest 声明 PerMonitorV2 DPI-aware |
-| 窗口拖动 | `WM_NCHITTEST` 返回 `HTCAPTION`，系统处理拖动 |
+| HiDPI 125%/150% | 代码 `SetProcessDpiAwarenessContext` PerMonitorV2（替代 manifest，契合单 exe） |
+| 窗口拖动 | `WM_NCHITTEST` 恒返回 `HTCLIENT`，自接管鼠标拖动；仅点在可见胶囊内才响应（胶囊外透明区不误拖） |
+| 整体缩放 | 滑块窗设 `scale` → 渲染线程动态 resize swapchain/capture + 动态 viewport；shader CANVAS=240×128（含形变余量），pill 230×96 |
 | 点击穿透 | DComp/`NOREDIRECTIONBITMAP` 窗无法穿透，已知限制，待重构 |
 
 ## 范围外

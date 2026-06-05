@@ -17,12 +17,15 @@ Windows 桌面液态玻璃红绿灯挂件，实时显示 [Claude Code](https://c
 
 按住玻璃会**果冻形变**（横向变窄、纵向拉长），拖得越快越窄，松手 Q 弹回弹——所有弹簧参数可在 `glass-tuning.json` 里热调。
 
+**整体缩放**：右键「调整大小…」弹出滑块窗，100%~2000% 无极缩放整个挂件（顶边固定、向下扩展），大小和位置自动记忆，下次启动恢复；可一键重置回默认。
+
 ## 安装与使用
 
 1. 从 [Releases](../../releases) 下载 `claude-traffic-light.exe`
 2. 双击运行
 3. 打开 Claude Code，开始 vibe coding
-4. 右键挂件 → 菜单（隐藏/固定位置/退出）
+4. **拖动**：按住可见胶囊拖拽移位（点胶囊外的透明区无反应）
+5. **右键菜单**：调整大小… / 隐藏 / 固定位置 / 重置大小和位置 / 退出
 
 **调参**：编辑 exe 同目录的 `glass-tuning.json`，保存即实时生效。
 
@@ -35,7 +38,7 @@ Windows 桌面液态玻璃红绿灯挂件，实时显示 [Claude Code](https://c
 | `~/.claude/settings.json` | 4 条 hook 规则 | 首次启动幂等写入（备份 → 合并 → 写回） |
 | `~/.claude/settings.json.bak` | 修改前的原文件 | 只在首次 hook 安装时创建一次 |
 | `~/.claude/agent-light-state` | 状态词（`idle`/`thinking`/`running`） | 每次 Claude Code hook 触发时覆盖写入 |
-| `./config.json` | 窗口位置 + 锁定/可见性 | 退出时保存，exe 同目录 |
+| `./config.json` | 窗口位置 + 锁定/可见性 + 缩放比例 | 退出 / 调整大小时保存，exe 同目录 |
 | `./glass-tuning.json` | 全部视觉与形变参数 | 首次运行自动生成，手工编辑热重载
 
 ## 架构
@@ -48,12 +51,13 @@ state/              四态枚举（灰/绿/黄/红）及优先级
 watcher/            每 100ms 读 hook 状态文件 + 每 3s 检测 claude.exe 进程
 ui/
   window.go           DComp 透明置顶窗、消息循环、自接管鼠标拖动、弹簧形变状态机
-  render.go           D3D11 渲染管线：device/swapchain/shader 编译 + 每帧绘制
+  render.go           D3D11 渲染管线：device/swapchain/shader 编译 + 每帧绘制（动态 viewport）
   glass.hlsl          像素 shader：超椭圆 SDF 限定形状、shuding 折射核、三灯叠加
-  capture.go          Desktop Duplication 抓取桌面纹理（GPU 常驻）
-  com.go              D3D11/DXGI/DComp COM 绑定
+  capture.go          Desktop Duplication 抓取桌面纹理（GPU 常驻，支持随缩放 Resize）
+  com.go              D3D11/DXGI/DComp COM 绑定（含 swapchain ResizeBuffers）
   win32.go            Win32 API 绑定与常量
   physics.go          二阶弹簧物理（每帧 Euler 积分，驱动形变）
+  sizedialog.go       调整大小滑块窗（comctl32 trackbar，100%~2000% 无极缩放）
 ```
 
 ### 状态探测：Claude Code Hooks
