@@ -28,9 +28,10 @@ C:\Open Source Projects\go\bin\go.exe test ./...
 ### 模块分层（目标架构，方案2）
 
 ```
-main.go           — 入口：单实例互斥、加载配置、安装 hook、居中、启动 watcher 和窗口；含 hook 子命令模式
+main.go           — 入口：单实例互斥、加载配置、开机自启同步、安装 hook、居中、启动 watcher 和窗口；含 hook 子命令模式 + //go:embed ico
 hookinstall.go    — 把状态 hook 安全合并进 ~/.claude/settings.json（幂等/备份/只增不删）
-config/           — config.json（窗口位置/锁定/可见/缩放）+ glass-tuning.json（视觉/形变参数）读写
+config/           — config.json（窗口位置/锁定/可见/缩放/开机自启）+ glass-tuning.json（视觉/形变参数）读写
+  autostart.go    — HKCU Run 注册表读写删（开机自动启动）+ SyncAutostart 路径自校正 + ToggleAutostart 菜单开关
 state/            — 四态枚举（Grey/Green/Yellow/Red）和优先级聚合
 watcher/          — 100ms 轮询 hook 写的状态文件，映射四态
 ui/               — 原生渲染与窗口管理（D3D11 + DComp + HLSL）
@@ -50,7 +51,9 @@ ui/               — 原生渲染与窗口管理（D3D11 + DComp + HLSL）
 
 - **方案2 已实现跑通**：DComp 透明置顶窗 + Desktop Duplication + 折射 shader + 四态红绿灯，实时折射真桌面、拖动顺滑、常亮。
 - **状态检测已切到 Claude Code Hooks**（见「状态探测」），替代旧 transcript 轮询。
-- **整体缩放**：右键菜单「调整大小…」弹 comctl32 滑块窗，100%~2000% 无极缩放（顶边固定、向下扩展），窗口/swapchain/桌面捕获动态 resize，`scale` 存 config.json 记忆；挂件本身不拖角缩放，缩放只走滑块窗。
+- **整体缩放**：右键菜单「调整大小…」弹 comctl32 滑块窗，100%~2000% 无极缩放（顶边固定、向下扩展），窗口/swapchain/桌面捕获动态 resize，`scale` 存 config.json 记忆。
+- **开机自动启动**：右键菜单「开机自动启动」写 `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`（ToggleAutostart），启动时路径自校正（SyncAutostart）；`startup` 存 config.json。
+- **运行时图标**：claude-traffic-light.ico（256/32/16）通过 `//go:embed` 嵌入 exe，`loadIconFromICO` 解析 ico，`CreateIconFromResourceEx` 设窗口 + 托盘图标（纯 Go 标准库，零外部工具）。
 - **点击穿透暂不可行**：DComp/`NOREDIRECTIONBITMAP` 窗无法穿透（已坐实），折射优先、待收尾后重构。
 
 ### 渲染方案（方案2，已锁定）

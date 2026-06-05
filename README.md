@@ -39,35 +39,42 @@ Windows 桌面液态玻璃红绿灯挂件，实时显示 [Claude Code](https://c
 ## 安装与使用
 
 1. 从 [Releases](../../releases) 下载 `claude-traffic-light.exe`
-2. 双击运行（首次运行会自动安装 Claude Code hook，见上）
+2. 双击运行（首次启动自动安装 Claude Code hook，并生成默认配置文件）
 3. 打开 Claude Code，开始 vibe coding
 4. **拖动**：按住可见胶囊拖拽移位（点胶囊外的透明区无反应）
-5. **右键菜单**：调整大小… / 隐藏 / 固定位置 / 重置大小和位置 / 退出
+5. **右键菜单**：
+   - **调整大小…** — 弹出滑块窗，100%~2000% 无极缩放，松手存盘、手动关闭
+   - **开机自动启动** — 写入 `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`（不弹 UAC，取消勾选即删记录）
+   - **隐藏 / 固定位置 / 重置大小和位置** — 自明
+   - **退出**
 
-**调参**：编辑 exe 同目录的 `glass-tuning.json`，保存即实时生效。
+**调参**：编辑 exe 同目录的 `glass-tuning.json`（首次运行自动生成），保存即实时生效，无需重启。
 
 ## 写入的文件
 
-首次运行及后续使用中，挂件会在以下位置读/写文件。**不修改任何系统文件，不写注册表。**
+首次运行及后续使用中，挂件会在以下位置读/写文件。**不修改任何系统文件。**
 
 | 路径 | 内容 | 说明 |
 |---|---|---|
 | `~/.claude/settings.json` | 4 条 hook 规则 | 首次启动幂等写入（备份 → 合并 → 写回） |
 | `~/.claude/settings.json.bak` | 修改前的原文件 | 只在首次 hook 安装时创建一次 |
 | `~/.claude/agent-light-state` | 状态词（`idle`/`thinking`/`running`） | 每次 Claude Code hook 触发时覆盖写入 |
-| `./config.json` | 窗口位置 + 锁定/可见性 + 缩放比例 | 退出 / 调整大小时保存，exe 同目录 |
+| `./config.json` | 位置 + 锁定/可见/缩放/开机自启 | 退出 / 调整大小 / 切换自启时保存，exe 同目录 |
 | `./glass-tuning.json` | 全部视觉与形变参数 | 首次运行自动生成，手工编辑热重载 |
+
+> 若开启「开机自动启动」，会在 `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` 写一条注册表记录（用户空间，不弹 UAC）。取消勾选后自动删除记录。
 
 ## 架构
 
 ```
-main.go             入口：单实例互斥 → 加载配置 → 安装 hook → 创建窗口 → 启动监测
+main.go             入口：单实例互斥 → 加载配置 → 开机自启同步 → 安装 hook → 创建窗口 → 启动监测
 hookinstall.go      把状态 hook 幂等合并进 ~/.claude/settings.json
-config/             配置读写（config.json 窗口位置/缩放 + glass-tuning.json 视觉热重载）
+config/             配置读写（config.json 位置/缩放/开机自启 + glass-tuning.json 视觉热重载）
+  autostart.go      注册表 HKCU Run 读写删 + 路径自校正（开机自动启动）
 state/              四态枚举（灰/绿/黄/红）及优先级
 watcher/            每 100ms 读 hook 状态文件 + 每 3s 检测 claude.exe 进程
 ui/
-  window.go           DComp 透明置顶窗、消息循环、自接管鼠标拖动、弹簧形变状态机
+  window.go           DComp 透明置顶窗、消息循环、自接管鼠标拖动、弹簧形变状态机、图标加载
   render.go           D3D11 渲染管线：device/swapchain/shader 编译 + 每帧绘制（动态 viewport）
   glass.hlsl          像素 shader：超椭圆 SDF 限定形状、shuding 折射核、三灯叠加
   capture.go          Desktop Duplication 抓取桌面纹理（GPU 常驻，支持随缩放 Resize）
