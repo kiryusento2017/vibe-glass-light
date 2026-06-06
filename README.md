@@ -53,8 +53,10 @@ Windows 桌面液态玻璃红绿灯挂件，实时显示 [Claude Code](https://c
 
 ## 安装与使用
 
+> ⚠️ **首次启动请以管理员身份运行**：挂件会在 exe 同目录自动生成 `glass-tuning.json`，若所在目录无写入权限（如某些 `C:\Program Files\` 路径），配置文件将无法创建。右键 exe →「以管理员身份运行」即可，**仅首次需要**，之后正常双击打开。
+
 1. 从 [Releases](../../releases) 下载 `claude-traffic-light.exe`
-2. 双击运行（首次启动自动生成 `glass-tuning.json` 供调参；若已装 Claude Code 则自动安装 hook）
+2. **首次**右键 exe →「以管理员身份运行」（生成配置文件）；之后正常双击运行即可
 3. 打开 Claude Code，开始 vibe coding
 4. **拖动**：按住可见胶囊拖拽移位（点胶囊外的透明区无反应）
 5. **右键菜单**（顺序同代码）：
