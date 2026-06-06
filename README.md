@@ -1,5 +1,7 @@
 # Claude Code Light 🚦
 
+> **English version**: [README.en.md](README.en.md)
+
 Windows 桌面液态玻璃红绿灯挂件，实时显示 [Claude Code](https://claude.ai/code) 工作状态。**上班 vibe coding 时余光一扫就知道 AI 在干嘛。**
 
 ## 系统要求
@@ -224,7 +226,7 @@ Go + D3D11 + DirectComposition + HLSL（无 WebView2、无 Electron、无 CGO）
 
 ## 限制 / 范围外
 
-- **仅 Windows 11**，不支持 macOS / Linux
+- **仅 Windows**，不支持 macOS / Linux
 - **仅 Claude Code**，不支持其他 AI 工具
 - 点击穿透：DComp 透明置顶窗无法穿透到下层，胶囊外透明区会挡住下层窗口点击（已知限制）
 - 无声音提示、无多显示器自动定位
