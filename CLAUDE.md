@@ -25,6 +25,25 @@ C:\Open Source Projects\go\bin\go.exe test ./...
 
 ### 构建规则（铁律，凡是编译成 exe 一律遵守）
 
+#### 发行前强制流程（每次，无例外）
+
+**第一步：问版本号。** 构建发行版前，必须先停下来问用户「当前要发哪个版本（Major.Minor.Patch）」，不许沿用 `versioninfo.json` 里的旧版本号直接构建。
+
+**第二步：改版本。** 用户确认版本后，改 `versioninfo.json` 的 `FileVersion`、`ProductVersion`（FixedFileInfo 和 StringFileInfo 各有一处），再重生成 syso：
+```powershell
+& "$env:USERPROFILE\go\bin\goversioninfo.exe" -icon="<绝对路径>\claude-traffic-light.ico" -o="<绝对路径>\rsrc_windows_amd64.syso"
+```
+
+**第三步：构建。** syso 更新后，再跑下面那条唯一的构建命令。
+
+**第四步：验证版本信息。**
+```powershell
+(Get-Item "dist\claude-traffic-light.exe").VersionInfo | Select-Object ProductName, FileVersion, CompanyName
+```
+确认 ProductName / FileVersion / CompanyName 全部正确后，构建才算完成。
+
+---
+
 **核心原则：调试用 `go run .`（不产 exe、带控制台）；凡是产出 exe 文件，只有一条命令，所有防护一次带齐。**
 
 ```powershell
