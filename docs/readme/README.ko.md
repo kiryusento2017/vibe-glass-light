@@ -8,11 +8,11 @@
 ![언어](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white)
 ![기술](https://img.shields.io/badge/D3D11_+_DirectComposition_+_HLSL-5C2D91)
 ![라이선스](https://img.shields.io/badge/license-MIT-green)
-[![다운로드](https://img.shields.io/badge/⬇_Download-Releases-success)](../../releases)
+[![다운로드](https://img.shields.io/badge/⬇_Download-Releases-success)](https://github.com/kiryusento2017/vibe-glass-light/releases)
 
-[简体中文](README.md) · [English](README.en.md) · [日本語](README.ja.md) · **한국어** · [繁體中文](README.zh-TW.md)
+[简体中文](../../README.md) · [English](README.en.md) · [日本語](README.ja.md) · **한국어** · [繁體中文](README.zh-TW.md)
 
-<img src="assets/screenshot-wide.jpg" width="600" alt="Claude Code Light: VS Code 위에 떠 있는 리퀴드 글래스 신호등, 초록불 켜짐" />
+<img src="../../assets/screenshot-wide.jpg" width="600" alt="Claude Code Light: VS Code 위에 떠 있는 리퀴드 글래스 신호등, 초록불 켜짐" />
 
 <sub>바탕화면을 실제로 굴절시키는 리퀴드 글래스 캡슐. 가운데 세 개의 램프가 Claude Code 상태에 실시간으로 연동됩니다.</sub>
 
@@ -60,7 +60,7 @@
 
 **1️⃣ 다운로드**
 
-[Releases](../../releases)에서 `claude-traffic-light.exe`를 받아 아무 폴더에나 둡니다.
+[Releases](https://github.com/kiryusento2017/vibe-glass-light/releases)에서 `claude-traffic-light.exe`를 받아 아무 폴더에나 둡니다.
 
 **2️⃣ 최초 실행은 관리자 권한으로**
 
@@ -74,7 +74,7 @@
 
 > 💡 **이 단계는 보통 C: 드라이브일 때만 필요**합니다. D: 등 다른 드라이브에 두면 대개 관리자 권한 없이도 설정 파일을 바로 생성할 수 있으니 건너뛰어도 됩니다.
 
-![config.json / glass-tuning.json 에 읽기·쓰기 권한 부여](assets/admin-permission.png)
+![config.json / glass-tuning.json 에 읽기·쓰기 권한 부여](../../assets/admin-permission.png)
 
 설정이 끝나면 Claude Code를 열고 vibe coding을 시작하세요. 램프가 따라 움직입니다.
 
@@ -283,4 +283,4 @@ go test ./...
 
 ## 📄 라이선스
 
-[MIT](LICENSE)
+[MIT](../../LICENSE)

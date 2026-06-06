@@ -8,11 +8,11 @@
 ![語言](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white)
 ![技術](https://img.shields.io/badge/D3D11_+_DirectComposition_+_HLSL-5C2D91)
 ![授權](https://img.shields.io/badge/license-MIT-green)
-[![下載](https://img.shields.io/badge/⬇_Download-Releases-success)](../../releases)
+[![下載](https://img.shields.io/badge/⬇_Download-Releases-success)](https://github.com/kiryusento2017/vibe-glass-light/releases)
 
-[简体中文](README.md) · [English](README.en.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · **繁體中文**
+[简体中文](../../README.md) · [English](README.en.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · **繁體中文**
 
-<img src="assets/screenshot-wide.jpg" width="600" alt="Claude Code Light：浮在 VS Code 上的液態玻璃紅綠燈，綠燈亮起" />
+<img src="../../assets/screenshot-wide.jpg" width="600" alt="Claude Code Light：浮在 VS Code 上的液態玻璃紅綠燈，綠燈亮起" />
 
 <sub>一塊真實折射桌面的液態玻璃膠囊，中間三盞燈即時跟著 Claude Code 的狀態走。</sub>
 
@@ -60,7 +60,7 @@
 
 **1️⃣ 下載**
 
-從 [Releases](../../releases) 下載 `claude-traffic-light.exe`，放到任意資料夾。
+從 [Releases](https://github.com/kiryusento2017/vibe-glass-light/releases) 下載 `claude-traffic-light.exe`，放到任意資料夾。
 
 **2️⃣ 首次以系統管理員身分執行**
 
@@ -74,7 +74,7 @@
 
 > 💡 **一般只有裝在 C 槽才需要這一步。** 裝在 D 槽等其他磁碟時，小工具通常能直接釋出設定檔、不需要系統管理員權限，可略過此步。
 
-![給 config.json / glass-tuning.json 讀寫權限](assets/admin-permission.png)
+![給 config.json / glass-tuning.json 讀寫權限](../../assets/admin-permission.png)
 
 裝好後，打開 Claude Code 開始 vibe coding，燈就會跟著動了。
 
@@ -283,4 +283,4 @@ go test ./...
 
 ## 📄 授權
 
-[MIT](LICENSE)
+[MIT](../../LICENSE)

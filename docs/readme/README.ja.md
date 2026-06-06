@@ -8,11 +8,11 @@
 ![言語](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white)
 ![技術](https://img.shields.io/badge/D3D11_+_DirectComposition_+_HLSL-5C2D91)
 ![ライセンス](https://img.shields.io/badge/license-MIT-green)
-[![ダウンロード](https://img.shields.io/badge/⬇_Download-Releases-success)](../../releases)
+[![ダウンロード](https://img.shields.io/badge/⬇_Download-Releases-success)](https://github.com/kiryusento2017/vibe-glass-light/releases)
 
-[简体中文](README.md) · [English](README.en.md) · **日本語** · [한국어](README.ko.md) · [繁體中文](README.zh-TW.md)
+[简体中文](../../README.md) · [English](README.en.md) · **日本語** · [한국어](README.ko.md) · [繁體中文](README.zh-TW.md)
 
-<img src="assets/screenshot-wide.jpg" width="600" alt="Claude Code Light：VS Code の上に浮かぶ液体ガラスの信号機、緑が点灯" />
+<img src="../../assets/screenshot-wide.jpg" width="600" alt="Claude Code Light：VS Code の上に浮かぶ液体ガラスの信号機、緑が点灯" />
 
 <sub>デスクトップを本当に屈折させる液体ガラスのカプセル。中央の 3 つのランプが Claude Code の状態にリアルタイムで連動します。</sub>
 
@@ -60,7 +60,7 @@
 
 **1️⃣ ダウンロード**
 
-[Releases](../../releases) から `claude-traffic-light.exe` をダウンロードし、任意のフォルダに置きます。
+[Releases](https://github.com/kiryusento2017/vibe-glass-light/releases) から `claude-traffic-light.exe` をダウンロードし、任意のフォルダに置きます。
 
 **2️⃣ 初回は管理者として実行**
 
@@ -74,7 +74,7 @@
 
 > 💡 **このステップが必要なのは基本的に C: ドライブの場合だけ**です。D: などの他ドライブに置けば、通常は管理者権限なしでそのまま設定ファイルを作れるので、スキップして構いません。
 
-![config.json / glass-tuning.json に読み書き権限を付与](assets/admin-permission.png)
+![config.json / glass-tuning.json に読み書き権限を付与](../../assets/admin-permission.png)
 
 セットアップが終わったら、Claude Code を開いて vibe coding を始めれば、ランプが連動します。
 
@@ -283,4 +283,4 @@ go test ./...
 
 ## 📄 ライセンス
 
-[MIT](LICENSE)
+[MIT](../../LICENSE)
