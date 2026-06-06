@@ -170,10 +170,48 @@ ui/
 
 ### Status detection: Claude Code Hooks (real-time)
 
-No transcript polling. On startup the widget idempotently merges 4 lifecycle hooks into `~/.claude/settings.json`; each hook calls the widget itself in exec form `claude-traffic-light.exe hook <state>`, reads `session_id` from stdin JSON, and writes a **per-session state file** `~/.claude/agent-light/agent-light-state-<sid>`. The watcher aggregates all session files every 100ms, taking the highest priority.
+No transcript polling — status is **pushed in real time** by Claude Code's 4 lifecycle hooks. On first launch the widget idempotently merges these 4 hooks into `~/.claude/settings.json`:
+
+| Claude Code event | State word written | Light |
+|---|---|---|
+| `UserPromptSubmit` / `PostToolUse` | `thinking` | 🟡 thinking |
+| `PreToolUse` | `running` | 🔴 running |
+| `Stop` | `idle` | 🟢 idle |
+
+Each hook calls the widget itself in exec form `claude-traffic-light.exe hook <state-word>` (spawned directly, no shell, avoiding Windows shell ambiguity), and does just one thing: write the state word into a **per-session state file**.
+
+#### One state file per session: `agent-light-state-<session_id>`
+
+When Claude Code fires a hook it passes a **JSON blob over stdin** containing the current session's `session_id`. The widget reads it and writes to:
+
+```
+~/.claude/agent-light/agent-light-state-<session_id>
+```
+
+The file's content is just one state word (`running` / `thinking` / `idle`). Key points:
+
+- **One file per session, never overwriting each other** — this is the foundation for multi-agent support (below).
+- The session_id is sanitized into a safe filename (letters/digits/hyphens only); if unavailable, it falls back to `default`.
+- Reading stdin has a **500ms hard timeout**, so the hook always returns within milliseconds and **never slows Claude Code down**.
+- Everything goes under the `agent-light/` subdirectory, instead of littering `~/.claude/`'s root.
+
+#### Multi-agent concurrency: any session busy → globally busy
+
+You may well run **multiple Claudes at once** (several terminals, or a main session spawning sub-agents), each writing its own state file. The watcher reads every `agent-light-state-*` file in `agent-light/` every 100ms and aggregates them into one global state by priority **Red > Yellow > Green > Grey**:
+
+```
+Session A: running  🔴 ┐
+Session B: idle     🟢 ├─ take highest ─→ 🔴 Red (A is still working → show busy)
+Session C: thinking 🟡 ┘
+```
+
+**As long as any session is busy, the widget shows busy.** So when one agent finishes first (writes `idle`) while another is still running, the light **won't be falsely flipped to green**; only when all sessions are `idle` does it go green, and only with no files at all does it go grey.
+
+#### Other fallbacks
 
 - **Busy state trusts only the hook content**, with no time-window timeout downgrade (long thinking has no tool calls → no hook, so a timeout would falsely mark it idle).
-- **Process-check fallback**: every 3s, `CreateToolhelp32Snapshot` checks for `claude.exe`; if gone, force grey — crashes/force-kills/boot leftovers all fall back to grey via this.
+- **Process-check fallback**: every 3s, `CreateToolhelp32Snapshot` checks for `claude.exe`; if gone, force grey — crashes / force-kills / boot leftovers all fall back to grey via this.
+- **Periodic cleanup**: every 30s, leftover session files not updated in over 10 minutes are deleted (pure disk reclamation, decoupled from state logic).
 - **The hook handler is the widget itself** — zero external dependencies (unlike approaches needing node).
 
 </details>

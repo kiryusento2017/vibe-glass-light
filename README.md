@@ -170,11 +170,49 @@ ui/
 
 ### 状态探测：Claude Code Hooks（实时驱动）
 
-不轮询 transcript。挂件启动时把 4 个生命周期 hook 幂等合并进 `~/.claude/settings.json`，每个 hook 以 exec form 直接调挂件自己 `claude-traffic-light.exe hook <state>`，从 stdin JSON 读 `session_id` 写**每会话独立状态文件** `~/.claude/agent-light/agent-light-state-<sid>`。watcher 每 100ms 聚合所有会话文件取最高优先级。
+不轮询 transcript，而是靠 Claude Code 的 4 个生命周期 hook **实时推送**状态。挂件首次启动时把这 4 条 hook 幂等合并进 `~/.claude/settings.json`，事件与状态对应如下：
+
+| Claude Code 事件 | 写入状态词 | 灯 |
+|---|---|---|
+| `UserPromptSubmit` / `PostToolUse` | `thinking` | 🟡 思考中 |
+| `PreToolUse` | `running` | 🔴 执行中 |
+| `Stop` | `idle` | 🟢 空闲 |
+
+每条 hook 以 exec form 直接调用挂件自己 `claude-traffic-light.exe hook <状态词>`（直接 spawn 不经 shell，规避 Windows 下 shell 不确定性），它只干一件事：把状态词写进一个**每会话独立的状态文件**。
+
+#### 每会话一个状态文件 `agent-light-state-<session_id>`
+
+Claude Code 触发 hook 时会通过 **stdin 传一段 JSON**，里面带着当前会话的 `session_id`。挂件从中读出它，写到：
+
+```
+~/.claude/agent-light/agent-light-state-<session_id>
+```
+
+文件内容就是一个状态词（`running` / `thinking` / `idle`）。几个要点：
+
+- **每个会话一个文件、互不覆盖**——这是支持多 agent 的基础（见下）。
+- session_id 会被过滤成安全文件名（只保留字母/数字/连字符）；读不到时回退为 `default`。
+- 读 stdin 带 **500ms 硬超时**，保证 hook 永远毫秒级返回、**绝不拖慢 Claude Code**。
+- 统一塞进 `agent-light/` 子目录，不在 `~/.claude/` 根目录摊一堆文件。
+
+#### 多 agent 并发：任一会话忙 → 全局忙
+
+你完全可能**同时跑多个 Claude**（多个终端窗口，或主会话派生出子 agent），它们各写各的状态文件。挂件的 watcher 每 100ms 把 `agent-light/` 目录下所有 `agent-light-state-*` 文件读一遍，按优先级 **红 > 黄 > 绿 > 灰** 聚合成一个全局状态：
+
+```
+会话 A: running  🔴 ┐
+会话 B: idle     🟢 ├─ 取最高优先级 ─→ 🔴 红（A 还在干活，就显示忙）
+会话 C: thinking 🟡 ┘
+```
+
+**只要有任一会话在忙，挂件就显示忙。** 这样当一个 agent 先结束（写了 `idle`）、而另一个还在跑时，灯**不会被误拉成绿**；只有全部会话都 `idle` 才显示绿，一个文件都没有才显示灰。
+
+#### 其余兜底机制
 
 - **忙态只信 hook 内容**，不做时间窗口超时降级（长思考无工具调用→无 hook，按超时会被误判空闲）。
-- **进程检测兜底灭灯**：每 3s 用 `CreateToolhelp32Snapshot` 检测 `claude.exe`，不在则强制灰——崩溃/强杀/开机残留统一靠这条回灰。
-- **hook handler 就是挂件自己**，零外部依赖（不像别的方案要 node）。
+- **进程检测兜底灭灯**：每 3s 用 `CreateToolhelp32Snapshot` 检测 `claude.exe`，进程不在则强制灰——崩溃 / 强杀 / 开机残留统一靠这条回灰。
+- **定时清理**：每 30s 删除超 10 分钟没更新的残留会话文件（纯磁盘回收，与状态判定解耦）。
+- **hook handler 就是挂件自己**，零外部依赖（不像别的方案还要装 node）。
 
 </details>
 
