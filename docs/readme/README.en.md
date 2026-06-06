@@ -2,9 +2,7 @@
 
 # 🚦 Glight
 
-**A Claude Code desktop status traffic-light widget · liquid-glass look**
-
-**A liquid-glass traffic light that floats on your desktop — one glance from the corner of your eye tells you what your AI is doing while you vibe code.**
+**An always-on-top liquid-glass traffic light on Windows — a glance tells you whether Claude Code is done. Your vibe-coding companion.**
 
 ![Platform](https://img.shields.io/badge/platform-Windows-0078D6?logo=windows&logoColor=white)
 ![Language](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white)

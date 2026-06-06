@@ -2,9 +2,7 @@
 
 # 🚦 Glight
 
-**Claude Code 바탕화면 신호등 상태 위젯 · 리퀴드 글래스 질감**
-
-**바탕화면에 떠 있는 리퀴드 글래스 신호등 —— vibe coding 중 곁눈질 한 번이면 AI가 지금 뭘 하는지 알 수 있습니다.**
+**Windows에서 항상 최상단에 떠 있는 리퀴드 글래스 신호등 —— 한눈에 Claude Code가 끝났는지 알 수 있는 vibe coding 동반자.**
 
 ![플랫폼](https://img.shields.io/badge/platform-Windows-0078D6?logo=windows&logoColor=white)
 ![언어](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white)

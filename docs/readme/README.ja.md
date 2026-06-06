@@ -2,9 +2,7 @@
 
 # 🚦 Glight
 
-**Claude Code のデスクトップ信号機ステータスウィジェット · 液体ガラス質感**
-
-**デスクトップに浮かぶ液体ガラスの信号機 —— vibe coding 中、視界の隅をちらっと見るだけで AI が今なにをしているか分かる。**
+**Windows で常に最前面に浮かぶ液体ガラスの信号機 —— 一目で Claude Code が終わったか分かる、vibe coding の相棒。**
 
 ![プラットフォーム](https://img.shields.io/badge/platform-Windows-0078D6?logo=windows&logoColor=white)
 ![言語](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white)

@@ -2,9 +2,7 @@
 
 # 🚦 Glight
 
-**Claude Code 桌面紅綠燈狀態小工具 · 液態玻璃質感**
-
-**懸浮在桌面的液態玻璃紅綠燈 —— 上班 vibe coding 時，餘光一掃就知道 AI 在幹嘛。**
+**Windows 上永遠置頂的液態玻璃紅綠燈，一眼看出 Claude Code 跑完沒 —— vibe coding 餘光神器。**
 
 ![平台](https://img.shields.io/badge/平台-Windows-0078D6?logo=windows&logoColor=white)
 ![語言](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white)
