@@ -1,234 +1,229 @@
-# Claude Code Light 🚦
+<div align="center">
 
-A liquid-glass desktop traffic-light widget for Windows that shows your [Claude Code](https://claude.ai/code) status in real time. **Glance at it while vibe coding and you'll always know what the AI is up to.**
+# 🚦 Claude Code Light
 
-## System Requirements
+**A liquid-glass traffic light that floats on your desktop — one glance from the corner of your eye tells you what your AI is doing while you vibe code.**
 
-| Requirement | Details |
-|---|---|
-| **OS** | **Windows only**. No macOS / Linux support (depends on DirectComposition + Desktop Duplication; no cross-platform plans) |
-| **Claude Code** | Requires [Claude Code](https://claude.ai/code) CLI installed locally. This is a status indicator **purpose-built for Claude Code** — it does not support Cursor, Copilot, or other AI tools |
-| **Runtime** | None. A single native `.exe` — no Node, .NET, or any framework required |
+![Platform](https://img.shields.io/badge/platform-Windows-0078D6?logo=windows&logoColor=white)
+![Language](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white)
+![Tech](https://img.shields.io/badge/D3D11_+_DirectComposition_+_HLSL-5C2D91)
+![License](https://img.shields.io/badge/license-MIT-green)
+[![Download](https://img.shields.io/badge/⬇_Download-Releases-success)](../../releases)
 
-## What It Looks Like
+[简体中文](README.md) · **English**
 
-A **liquid-glass pill** floating on your desktop. You can see the real desktop refracted and distorted through it, with three traffic lights in the center reflecting Claude Code's current state:
+<img src="assets/screenshot-wide.jpg" width="600" alt="Claude Code Light: a liquid-glass traffic light floating over VS Code, green light lit" />
 
-| Light | Meaning | Claude Code State |
+<sub>A liquid-glass capsule that genuinely refracts your desktop, with three lights that track Claude Code's status in real time.</sub>
+
+</div>
+
+---
+
+## What is this
+
+**Claude Code Light** is a Windows desktop widget: an **always-on-top liquid-glass capsule** that genuinely refracts the desktop behind it. Embedded in the capsule are three traffic lights that **mirror [Claude Code](https://claude.ai/code)'s working status in real time** —
+
+> Red blinking = running a tool; Yellow blinking = thinking; Green solid = idle, waiting for you; All off = not running.
+
+No need to keep staring at the terminal — **a glance at the widget tells you whether the AI is busy, thinking, or stopped.** A single native `.exe`, no runtime dependencies, plug-and-play from a USB stick.
+
+## ✨ Design philosophy
+
+Inspired by **Apple's "Liquid Glass."** Unlike approaches that just smear a blur over the background, this is **real refraction**:
+
+- **Refracts the real desktop in real time** — it grabs actual screen pixels and runs a custom HLSL refraction shader, so the windows, code, and wallpaper behind it get warped inward like through real glass (clear in the center, strong refraction at the edges) — not a frozen screenshot or a flat frosted blur.
+- **Draggable** — grab the capsule and drop it anywhere; it remembers its position.
+- **Squishy, jelly-like deformation on press** 🍮 — this is the soul of it. Press and the glass **squishes wide and stretches tall** like jelly; drag faster and it gets "flung" narrower; release and it bounces back via **second-order spring physics**, with a slight overshoot before settling. Every deformation parameter (stiffness / damping / overshoot) is hot-tunable in `glass-tuning.json` — save and it takes effect instantly.
+- **Free scaling** — right-click "Resize" for stepless 100%–2000% zoom; size and position are remembered.
+
+## 🚦 Status reference
+
+| Light | Meaning | Triggering Claude Code event |
 |---|---|---|
-| 🔴 Red blinking | Executing a tool | PreToolUse |
-| 🟡 Yellow blinking | Thinking | UserPromptSubmit / PostToolUse |
-| 🟢 Green steady | Idle | Stop |
-| ⚫ All off | Not running | Claude Code process not found |
+| 🔴 **Red blinking** | Running a tool | `PreToolUse` |
+| 🟡 **Yellow blinking** | Thinking | `UserPromptSubmit` / `PostToolUse` |
+| 🟢 **Green solid** | Idle, waiting | `Stop` |
+| ⚫ **All off** | Not running | `claude.exe` process is gone |
 
-Press and hold the glass and it **deforms like jelly** (narrower horizontally, stretched vertically). The faster you drag, the narrower it gets — release and it snaps back with a bouncy spring. All physics parameters are hot-tunable in `glass-tuning.json`.
+Priority: **Red > Yellow > Green > Grey**. With multiple concurrent Claude sessions, if any one is busy it shows busy — one session ending won't falsely flip it to idle.
 
-**Global scaling**: Right-click → "Resize…" opens a slider window for stepless 100%–2000% scaling of the entire widget (top edge fixed, expands downward). Size and position are auto-saved and restored on next launch. One-click reset to default is available.
+## 💻 Requirements
 
-## How It Works
+| Requirement | Notes |
+|---|---|
+| **OS** | **Windows 10 (2004+) / 11 only.** **No macOS / Linux** — it relies on Windows-exclusive DirectComposition + Desktop Duplication, with no cross-platform plans. |
+| **Claude Code** | Requires [Claude Code](https://claude.ai/code) CLI installed locally. This is a status indicator **built specifically for Claude Code** — not for Cursor / Copilot / other AI tools. It still runs without it, but the lights stay grey. |
+| **Runtime** | **None.** A single native `.exe` — no Node / .NET / Electron / any framework. |
 
-When you double-click the `.exe`, the widget starts up in this order (**zero system file modifications**):
+## 📦 Install (3 steps)
 
-1. **Single-instance check** — exits immediately if already running.
-2. **Load config** — reads `config.json` (position / scale / visibility / autostart) and `glass-tuning.json` (visual / physics parameters) from the exe's directory. If `glass-tuning.json` doesn't exist, it **auto-generates defaults** (for you to edit). If `config.json` doesn't exist, it uses **in-memory defaults** (no file written until your first save action).
-3. **Sync autostart** — if autostart was previously enabled, corrects the registry path to the current exe location.
-4. **Install hooks (branched)**:
-   - **Claude Code installed** (`~/.claude/settings.json` exists) → idempotently merges 4 status hooks (backs up `.bak` first, append-only, no duplicates).
-   - **Claude Code not installed** (`~/.claude/` doesn't exist) → **silently skips, creates no files or directories**.
-5. **Create window + start monitoring** — creates the transparent topmost glass window; watcher polls status files every 100ms and checks for `claude.exe` every 3s.
+**1️⃣ Download**
 
-**With Claude Code**: lights change in real time as Claude works (red = executing, yellow = thinking, green = idle). After closing Claude, all three lights go off within 3s.
-**Without Claude Code**: the widget displays normally as liquid glass, but with no status detected, all three lights stay **grey** — and nothing is written to `~/.claude/`.
+Grab `claude-traffic-light.exe` from [Releases](../../releases) and put it in any folder.
 
-## About Claude Code
+**2️⃣ First launch as administrator**
 
-This widget uses **Claude Code's Hooks mechanism** for real-time status — no transcript polling:
+> Right-click the exe → "Run as administrator". **Only needed the first time** — after that, just double-click.
 
-- **On first run**, it checks `~/.claude/settings.json`: if present (Claude Code installed), it idempotently merges 4 hook rules (backs up first, append-only, no duplicates); **if absent, it silently skips — no files or directories are created** on machines without Claude Code.
-- Every time Claude Code fires a lifecycle event, the hook calls the widget itself to write a status file. The widget reflects changes on the lights within 100ms.
-- **Auto-off**: checks for the `claude.exe` process every 3s; after closing Claude Code, all lights go off within 3s at most.
-- The hook handler is the widget `.exe` itself (`claude-traffic-light.exe hook <state>`) — **zero external dependencies**.
+On first launch the widget writes two config files next to the exe: `config.json` (position/scale) and `glass-tuning.json` (visual/deformation params).
 
-> If Claude Code isn't installed on your machine, the widget runs fine but stays grey (all lights off) since it can't detect any status.
+**3️⃣ Grant read + write permission to those two files**
 
-## Install & Use
+If the widget lives on the **C: drive** (especially protected dirs like `C:\Program Files\`), Windows may block it from writing config files. In that case, manually grant **Read + Write** to those two files: right-click the file → "Properties" → "Security" → "Edit", check "Write".
 
-> ⚠️ **Run as administrator on first launch**: the widget auto-generates `glass-tuning.json` in the exe's directory on first run, and writes `config.json` and `~/.claude/settings.json` during subsequent use. If the exe's directory lacks write permissions (e.g., some `C:\Program Files\` paths), config files cannot be created or updated.
->
-> **Three files need write access**:
->
-> 1. **exe directory** — `config.json` and `glass-tuning.json` are read/written here
-> 2. **`~/.claude/settings.json`** — the widget merges hook config into this file (idempotent, backs up first)
->
-> Right-click the exe → "Run as administrator" — **only needed the first time**. After that, just double-click normally.
->
-> ![Running as administrator](assets/admin-permission.png)
+> 💡 **This step is usually only needed on the C: drive.** On other drives (e.g. D:), the widget can normally write its config files without admin rights — you can skip this.
 
-1. Download `claude-traffic-light.exe` from [Releases](../../releases)
-2. **First launch**: right-click the exe → "Run as administrator" (to generate config files); after that, double-click normally
-3. Open Claude Code, start vibe coding
-4. **Drag**: click and hold the visible pill to move it (clicking the transparent area outside the pill does nothing)
-5. **Right-click menu** (in code order):
-   - **Show/Hide** — toggle widget visibility; restore from tray icon when hidden
-   - **Lock Position** — when locked, dragging is disabled to prevent accidental moves
-   - **Launch on Startup** — writes to `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` (no UAC prompt; unchecks deletes the entry)
-   - **Resize…** — opens a slider window for stepless 100%–2000% scaling; saves on release, close manually
-   - **Reset Size & Position** — back to 100%, centered at top of screen
-   - **Restart** — one-click restart when the widget freezes or glitches (new instance polls until the old one releases its lock, guaranteed not to "close without reopening")
-   - **Exit**
+![Granting read/write permission to config.json / glass-tuning.json](assets/admin-permission.png)
 
-**Tuning**: edit `glass-tuning.json` in the exe's directory (auto-generated on first run); changes take effect immediately on save — no restart needed.
+Once set up, open Claude Code and start vibe coding — the lights will follow along.
 
-**System tray**: a widget icon appears in the taskbar after launch. **Right-click the tray icon** for the same menu as right-clicking the window; **double-click the tray icon** to show/hide the window.
+## 🎮 Usage
 
-## Files Written
+- **Drag** — hold the visible capsule and drag to reposition (clicks on the transparent area outside the capsule do nothing, so no accidental drags).
+- **Right-click / tray menu**:
+  | Item | Effect |
+  |---|---|
+  | Show / Hide | Toggle visibility; restore from the tray icon |
+  | Lock position | Locked = can't be dragged, prevents accidental moves |
+  | Start on boot | Writes a registry Run entry (user scope, no UAC prompt); unchecking removes it |
+  | Resize… | Slider window, stepless 100%–2000% zoom |
+  | Reset size & position | Back to 100%, centered at top of screen |
+  | Restart | One-click restart for stuck frames/glitches (new instance takes over cleanly) |
+  | Exit | — |
+- **System tray** — right-click the tray icon = same menu; double-click = show/hide.
+- **Tuning** — edit `glass-tuning.json` next to the exe; **save and it hot-reloads (~0.5s)**, no restart needed.
 
-On first run and during subsequent use, the widget reads/writes files in the following locations. **No system files are modified.**
+---
+
+<details>
+<summary><b>🔧 Tuning: all parameters & defaults</b> (click to expand)</summary>
+
+Edit `glass-tuning.json` next to the exe; **save and it hot-reloads, no restart or recompile**. This file is per-machine and not version-controlled; delete it and the defaults below regenerate on next launch. The authoritative defaults live in `DefaultTuning()` in `config/tuning.go`.
+
+**Visual parameters**
+
+| Param | Effect | Default | Range |
+|---|---|---|---|
+| `cornerR` | Corner radius (px); bigger = rounder | 48 | 0–115 |
+| `cornerN` | Corner curvature exponent; 2 = standard circle, higher = squarer (Apple-style G2) | 2.1 | 2.0–4.0 |
+| `refractBand` | Refraction band depth (px); only refracts within this depth of the edge | 3 | 1–30 |
+| `edgeSqueeze` | Edge contraction; 0 = strongest refraction, 1 = none | 0.25 | 0–1 |
+| `contrast` | Contrast | 1.2 | 0.5–2.0 |
+| `brightness` | Brightness | 0.9 | 0.5–2.0 |
+| `saturate` | Saturation | 1.5 | 0–3 |
+| `lampR` | Lamp radius (px) | 19 | 6–30 |
+| `lampGap` | Lamp spacing (px), red↔yellow↔green center distance | 64 | 38–90 |
+| `glow` | Glow intensity when lit | 0 | 0–1 |
+
+**Physics / deformation parameters**
+
+| Param | Effect | Default | Range |
+|---|---|---|---|
+| `springK` | Spring stiffness; higher = faster, harder snap-back | 120 | 30–300 |
+| `springC` | Damping; lower = more overshoot/bounce | 8 | 1–20 |
+| `steadyX` | Resting horizontal scale; <1 = slightly narrow | 0.91 | 0.8–1.04 |
+| `steadyY` | Resting vertical scale; >1 = slightly tall | 1.11 | 0.9–1.30 |
+| `pressX` | Pressed horizontal scale; <1 = narrower | 0.82 | 0.5–1.04 |
+| `pressY` | Pressed vertical scale; >1 = taller | 1.22 | 0.8–1.30 |
+| `dragK` | Drag deformation strength; higher = more violent | 0.02 | 0.001–0.05 |
+| `dragMin` | Drag deformation floor; 0.5 = shrinks to at most 50% | 0.5 | 0.3–1.0 |
+| `releaseImpulse` | Release overshoot multiplier; >1 = stronger bounce | 1.5 | 1.0–3.0 |
+
+> ⚠️ **Deformation has a hard cap**: canvas is 240×144, glass is 230×96, so at any moment horizontal scale ≤ 1.04 and vertical scale ≤ 1.50 — exceed it and the capsule top/bottom gets clipped by the canvas. Vertical drag has a built-in `maxDragScaleY=1.4` clamp. For more dramatic stretch, change `CANVAS`/`PILL` in `ui/glass.hlsl` (requires recompile).
+
+</details>
+
+<details>
+<summary><b>🏗️ Architecture & how it works</b> (click to expand)</summary>
+
+### Render pipeline (the core)
+
+```
+Desktop Duplication grabs the full-screen desktop texture (GPU-resident)
+  → HLSL squircle SDF + refraction core (clear center, strong edge refraction)
+  → DXGI composition swapchain → DirectComposition transparent topmost window
+The window sets WDA_EXCLUDEFROMCAPTURE to exclude itself from capture, breaking the "refracting itself" feedback loop
+```
+
+Why not CSS `backdrop-filter` / WebView2? Because those can only sample inside the WebView document — they **can't reach the OS desktop**, so the old version could only show as a black box. Windows also has no system API for "refractive displacement of a window's background" (DWM Acrylic only blurs, no refraction). The only way is to grab desktop pixels yourself and write your own refraction shader.
+
+### Module layout
+
+```
+main.go             Entry: single-instance mutex → load config → autostart sync → install hooks → window + watcher
+hookinstall.go      Idempotently merges status hooks into ~/.claude/settings.json (backup first, additive only)
+config/             config.json (position/scale/autostart) + glass-tuning.json (hot-reloaded visuals)
+  autostart.go      Registry HKCU Run read/write/delete + path self-correction
+state/              Four-state enum (grey/green/yellow/red) and priority aggregation
+watcher/            Aggregates per-session state files every 100ms (any busy = busy) + 3s process check fallback
+ui/
+  window.go           DComp transparent topmost window, message loop, custom drag, spring deformation state machine
+  render.go           D3D11 render pipeline: device/swapchain/shader compile + per-frame draw
+  glass.hlsl          Pixel shader: squircle SDF shape + refraction core + three lamps
+  capture.go          Desktop Duplication capture (Resize on zoom + throttled rebuild after invalidation)
+  com.go              D3D11/DXGI/DComp COM bindings
+  win32.go            Win32 API bindings and constants
+  physics.go          Second-order spring physics (per-frame Euler integration)
+  sizedialog.go       Resize slider window (comctl32 trackbar)
+```
+
+### Status detection: Claude Code Hooks (real-time)
+
+No transcript polling. On startup the widget idempotently merges 4 lifecycle hooks into `~/.claude/settings.json`; each hook calls the widget itself in exec form `claude-traffic-light.exe hook <state>`, reads `session_id` from stdin JSON, and writes a **per-session state file** `~/.claude/agent-light/agent-light-state-<sid>`. The watcher aggregates all session files every 100ms, taking the highest priority.
+
+- **Busy state trusts only the hook content**, with no time-window timeout downgrade (long thinking has no tool calls → no hook, so a timeout would falsely mark it idle).
+- **Process-check fallback**: every 3s, `CreateToolhelp32Snapshot` checks for `claude.exe`; if gone, force grey — crashes/force-kills/boot leftovers all fall back to grey via this.
+- **The hook handler is the widget itself** — zero external dependencies (unlike approaches needing node).
+
+</details>
+
+<details>
+<summary><b>📝 Files written</b> (click to expand)</summary>
+
+The widget **modifies no system files.** It reads/writes:
 
 | Path | Content | Notes |
 |---|---|---|
-| `~/.claude/settings.json` | 4 hook rules | Idempotently written on first launch (backup → merge → write back) |
-| `~/.claude/settings.json.bak` | Pre-modification original | Created when hook config changes (first install / exe moved or renamed) |
-| `~/.claude/agent-light/agent-light-state-<session_id>` | Status word (`idle`/`thinking`/`running`), one file per session | Overwritten on each Claude Code hook event |
-| `./config.json` | Position + lock/visibility/scale/autostart | Saved on drag release / menu action / resize; exe directory |
-| `./glass-tuning.json` | All visual and physics parameters | Auto-generated on first run; manually edited, hot-reloaded |
+| `~/.claude/settings.json` | 4 hook rules | Idempotent write on first launch (backup → merge → write back); if `~/.claude/` doesn't exist it **silently skips**, creating nothing |
+| `~/.claude/settings.json.bak` | Pre-edit original | Created when hook config changes |
+| `~/.claude/agent-light/agent-light-state-<sid>` | State word, one file per session | Overwritten on each hook trigger |
+| `./config.json` | Position/lock/visibility/scale/autostart | Saved on drag/menu/resize, next to the exe |
+| `./glass-tuning.json` | All visual & deformation params | Auto-generated on first run, hot-reloaded on manual edit |
 
-> If "Launch on Startup" is enabled, a registry entry is written to `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` (user space, no UAC prompt). Unchecking it deletes the entry.
+Enabling "Start on boot" writes one entry to `HKCU\...\Run` (user scope, no UAC); unchecking removes it.
 
-## Tuning: Defaults & Ranges
+</details>
 
-Edit `glass-tuning.json` in the exe's directory — **changes hot-reload on save (~500ms), no restart or recompile needed**. This file is per-machine and not version-controlled; deleting it regenerates defaults on next launch.
+<details>
+<summary><b>🛠️ Build from source</b> (click to expand)</summary>
 
-> The authoritative source of defaults is `config/tuning.go`'s `DefaultTuning()` (compiled into the exe). New users without a json file get these defaults on first run.
-
-**Visual Parameters**
-
-| Parameter | Meaning | Default | Suggested Range |
-|---|---|---|---|
-| `cornerR` | Corner radius (px) | 48 | 0–48 true rounded rect; =48 short edge fully round; 48–115 approaches pill shape |
-| `cornerN` | Corner curvature exponent | 2.1 | 2.0–4.0 (2 = standard round, larger = squarer / Apple G2 feel) |
-| `refractBand` | Refraction band depth (px) | 3 | 1–30 (small = edge-only, large = deep refraction) |
-| `edgeSqueeze` | Edge squeeze | 0.25 | 0–1 (0 = strongest refraction, 1 = no refraction) |
-| `contrast` | Contrast | 1.2 | 0.5–2.0 (1 = unchanged) |
-| `brightness` | Brightness | 0.9 | 0.5–2.0 (<1 = darker) |
-| `saturate` | Saturation | 1.5 | 0–3 (0 = grayscale, 1 = unchanged) |
-| `lampR` | Lamp radius (px) | 19 | 6–30 (>32 overlaps adjacent lamps) |
-| `lampGap` | Lamp spacing (px) | 64 | 38–90 (<2×lampR overlaps, >95 out of pill) |
-| `glow` | Lit glow | 0 | 0–1 (additive; high values on dark backgrounds may wash out into halos — use with caution) |
-
-**Physics Parameters**
-
-| Parameter | Meaning | Default | Suggested Range |
-|---|---|---|---|
-| `springK` | Spring stiffness | 120 | 30–300 (higher = faster, snappier return) |
-| `springC` | Damping | 8 | 1–20 (lower = more overshoot / oscillation) |
-| `steadyX` | Steady horizontal scale | 0.91 | 0.8–1.04 (<1 = narrower at rest) |
-| `steadyY` | Steady vertical scale | 1.11 | 0.9–1.30 (>1 = taller at rest) |
-| `pressX` | Press horizontal scale | 0.82 | 0.5–1.04 (<1 = narrower on press) |
-| `pressY` | Press vertical scale | 1.22 | 0.8–1.30 (>1 = taller on press) |
-| `dragK` | Drag deformation strength | 0.02 | 0.001–0.05 (higher = more deformation while dragging) |
-| `dragMin` | Drag deformation floor | 0.5 | 0.3–1.0 (0.5 = at most 50% compression) |
-| `releaseImpulse` | Release overshoot multiplier | 1.5 | 1.0–3.0 (>1 = stronger bounce) |
-
-> ⚠️ **Deformation has hard caps — exceeding them clips the canvas**: the canvas is 240×144 and the glass is 230×96, so at any moment **horizontal scale ≤ 240/230 ≈ 1.04, vertical scale ≤ 144/96 = 1.50**. If the peak of `steadyY` + `pressY` + release overshoot exceeds 1.50, the pill top/bottom will be clipped. Vertical dragging is internally clamped at `maxDragScaleY=1.4` to prevent hitting the wall. For more extreme stretching, you'd need to modify `CANVAS`/`PILL` in `ui/glass.hlsl` (requires recompile, not hot-reloadable).
-
-## Architecture
-
-```
-main.go             Entry: single-instance mutex (--restarted polling) → load config → sync autostart → install hooks (idempotent: exe real name) → create window → start monitoring
-hookinstall.go      Idempotently merge status hooks into ~/.claude/settings.json
-config/             Config read/write (config.json position/scale/autostart + glass-tuning.json visual hot-reload)
-  autostart.go      HKCU Run registry read/write/delete + path self-correction (launch on startup)
-state/              Four-state enum (Grey/Green/Yellow/Red) and priority aggregation
-watcher/            Every 100ms aggregate per-session status files (any session busy = global busy) + every 3s process check fallback (procmon.go)
-ui/
-  window.go           DComp transparent topmost window, message loop, self-managed mouse drag, spring physics state machine, icon loading
-  render.go           D3D11 render pipeline: device/swapchain/shader compilation + per-frame draw (dynamic viewport)
-  glass.hlsl          Pixel shader: superellipse SDF shape mask, shuding refraction kernel, three-lamp overlay
-  capture.go          Desktop Duplication capture (supports resize on scale change + rate-limited rebuild on session switch invalidation)
-  com.go              D3D11/DXGI/DComp COM bindings (including swapchain ResizeBuffers)
-  win32.go            Win32 API bindings and constants
-  physics.go          Second-order spring physics (per-frame Euler integration driving deformation)
-  sizedialog.go       Resize slider window (comctl32 trackbar, 100%–2000% stepless scaling)
-```
-
-### Status Detection: Claude Code Hooks
-
-No transcript polling. Four lifecycle hooks push status in real time:
-
-```
-UserPromptSubmit → Yellow (thinking)
-PostToolUse      → Yellow (thinking)
-PreToolUse       → Red (executing)
-Stop             → Green (idle)
-```
-
-Hooks are installed in exec form (`command` = exe path + `args`, spawned directly without a shell). Each hook reads `session_id` from stdin JSON and writes a **per-session status file** at `~/.claude/agent-light/agent-light-state-<sid>`. The watcher aggregates all session files every 100ms: **any session busy → global busy** (prevents one agent finishing from falsely pulling green during multi-agent concurrency); all idle → green; no files → grey.
-
-- **Busy state trusts hook content only**: `running` → red, `thinking` → yellow, `idle` → green. No time-window staleness fallback (long thinking without tool calls → no hook events → time-based fallback would falsely downgrade to green).
-- **Process detection as the sole fallback**: every 3s uses `CreateToolhelp32Snapshot` to check for `claude.exe`; if absent, forces grey — crash / force-kill / stale boot residue all resolve to grey via this path, eliminating stuck yellow/red on boot.
-- **Scheduled cleanup (10min)**: every 30s deletes stale files not updated for over 10 minutes (pure disk reclamation).
-
-### Render Pipeline
-
-```
-Desktop Duplication captures full-screen desktop texture (GPU-resident)
-  → HLSL superellipse SDF + shuding refraction kernel (center clear, edges strongly refracted)
-  → DXGI swapchain → DirectComposition transparent topmost window
-WDA_EXCLUDEFROMCAPTURE excludes self from capture, breaking the feedback loop
-```
-
-### Spring Deformation
-
-A second-order spring (stiffness K + damping C) integrates via Euler per frame. The main thread sets targets on mouse events; the render thread advances physics each frame:
-
-- **Pressed**: narrower horizontally + taller vertically (`pressX` / `pressY`)
-- **Steady state**: slightly narrower and taller (`steadyX` / `steadyY`)
-- **Dragging**: additional compression proportional to speed (`dragK`, floor `dragMin`)
-- **Released**: returns to steady state with velocity-based overshoot impulse (`releaseImpulse`)
-
-All parameters hot-tunable in `glass-tuning.json`.
-
-## Build
-
-Requires Go toolchain + Windows:
+Requires the Go toolchain + Windows:
 
 ```powershell
-# Debug (console visible for output, no exe produced)
+# Debug (with console output, no exe produced)
 go run .
 
-# Build exe (local testing / release — the one and only command; mkdir dist first if absent)
+# Build exe (the one and only command, all four safeguards together)
 go build -trimpath -buildvcs=false -ldflags="-H windowsgui" -o dist/claude-traffic-light.exe .
 
 # Test
 go test ./...
 ```
 
-> **Build rule**: debug with `go run .` (no exe); whenever producing an exe, use the single command above with all four safeguards — `-trimpath` (strips local paths/usernames), `-buildvcs=false` (strips git metadata), `-ldflags="-H windowsgui"` (no console window), `-o dist/` (isolated output), with icon + version info auto-embedded. **Never `-s -w`** (triggers Wacatac false positives), never pack with UPX. See [docs/编译构建发行.md](docs/编译构建发行.md) for the full workflow.
+> **Build rule**: use `go run .` for debugging; produce an exe only with the command above — `-trimpath` (strips local paths/username), `-buildvcs=false` (strips git info), `-ldflags="-H windowsgui"` (no console window), `-o dist/` (isolation), and it auto-embeds `rsrc_windows_amd64.syso` (icon + version info). **Never use `-s -w`** (triggers AV false positives), **never pack** (UPX etc.).
 
-### Exe Icon + Version Info (Explorer Properties)
+**Recording a demo**: the normal exe is invisible to OBS and other screen recorders (by design, via `WDA_EXCLUDEFROMCAPTURE`). Launch with `--demo` to lift the exclusion so OBS can capture it — but then the glass refracts itself. For the cleanest demo footage, just film the screen with a phone/camera.
 
-The window/tray icon is loaded at runtime by `main.go`'s `//go:embed claude-traffic-light.ico`, while the **exe file icon + version info in Explorer properties** (product name / version / attribution) is a separate mechanism — embedded at **link time** via `rsrc_windows_amd64.syso`.
+</details>
 
-- This syso is generated by **goversioninfo** from `versioninfo.json` (version metadata) + the ico **combined into one**; both `versioninfo.json` and the syso are **checked in**, so cloning and running `go build` directly yields an exe with icon + version info.
-- **Only regenerate** when changing the icon / version number / attribution:
-  ```powershell
-  goversioninfo -icon=claude-traffic-light.ico -o=rsrc_windows_amd64.syso
-  ```
-  (Install once: `go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@latest`)
-- ⚠️ **The filename must include `_windows_amd64`** so `go build` auto-selects it by platform. **Never** generate a second `.syso` with a resource section (e.g., `rsrc.syso`) — two `.rsrc` sections → linker fails with `too many .rsrc sections`.
+## 🚧 Limitations / out of scope
 
-## Tech Stack
-
-Go + D3D11 + DirectComposition + HLSL (no WebView2, no Electron, no CGO)
-
-## Limitations / Out of Scope
-
-- **Windows only** — no macOS / Linux support
-- **Claude Code only** — no support for other AI tools
-- Click-through: DComp transparent topmost windows cannot pass clicks through; the transparent area outside the pill will block clicks to windows underneath (known limitation)
+- **Windows only**, no macOS / Linux
+- **Claude Code only**, no other AI tools
+- **Click-through**: a DComp transparent topmost window can't pass clicks to the layer below, so the transparent area outside the capsule blocks clicks to windows underneath (known limitation)
 - No sound alerts, no multi-monitor auto-positioning
 
-## License
+## 📄 License
 
-MIT
+[MIT](LICENSE)

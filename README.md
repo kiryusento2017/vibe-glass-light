@@ -1,197 +1,202 @@
-# Claude Code Light 🚦
+<div align="center">
 
-> **English version**: [英文](README.en.md)
+# 🚦 Claude Code Light
 
-Windows 桌面液态玻璃红绿灯挂件，实时显示 [Claude Code](https://claude.ai/code) 工作状态。**上班 vibe coding 时余光一扫就知道 AI 在干嘛。**
+**悬浮在桌面的液态玻璃红绿灯 —— 上班 vibe coding 时，余光一扫就知道 AI 在干嘛。**
 
-## 系统要求
+![平台](https://img.shields.io/badge/平台-Windows-0078D6?logo=windows&logoColor=white)
+![语言](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white)
+![技术](https://img.shields.io/badge/D3D11_+_DirectComposition_+_HLSL-5C2D91)
+![许可](https://img.shields.io/badge/license-MIT-green)
+[![下载](https://img.shields.io/badge/⬇_下载-Releases-success)](../../releases)
+
+**简体中文** · [English](README.en.md)
+
+<img src="assets/screenshot-wide.jpg" width="600" alt="Claude Code Light：浮在 VS Code 上的液态玻璃红绿灯，绿灯亮起" />
+
+<sub>一块真实折射桌面的液态玻璃胶囊，中间三盏灯实时跟着 Claude Code 的状态走。</sub>
+
+</div>
+
+---
+
+## 这是什么
+
+**Claude Code Light** 是一个 Windows 桌面挂件：一块**永远悬浮在最上层**的液态玻璃胶囊，透过它能看到真实桌面被实时折射扭曲。胶囊中间嵌着三盏红绿灯，**实时反映 [Claude Code](https://claude.ai/code) 的工作状态**——
+
+> 红灯闪 = 正在执行工具；黄灯闪 = 正在思考；绿灯常亮 = 空闲等你；全灭 = 没在跑。
+
+写代码时不用一直盯着终端，**余光扫一眼挂件就知道 AI 是在忙、在想、还是停了**。单个原生 `.exe`，不依赖任何运行时，扔进 U 盘即插即用。
+
+## ✨ 设计思路
+
+灵感来自 **Apple 的「液态玻璃 (Liquid Glass)」**。和那些只会糊一层模糊背景的方案不同，它是**真·折射**：
+
+- **实时折射真实桌面** —— 自取屏幕像素 + 自写 HLSL 折射 shader，玻璃后面的窗口、代码、壁纸会像隔着真玻璃一样被向心扭曲（中心清晰、边缘强折射），而不是一张死图或一块模糊毛玻璃。
+- **可拖拽** —— 按住胶囊随手拖到屏幕任意角落，松手记忆位置。
+- **按压会 QQ 弹弹形变** —— 这是灵魂所在 🍮。按下去玻璃会像果冻一样**横向压扁、纵向拉长**；拖得越快被「甩」得越窄；松手后靠**二阶弹簧物理**Q 弹回弹、轻微过冲再归位。整套形变参数（刚度/阻尼/过冲）都能在 `glass-tuning.json` 里热调，存盘即生效。
+- **无极缩放** —— 右键「调整大小」100%~2000% 任意放大缩小，大小位置自动记忆。
+
+## 🚦 状态对照表
+
+| 灯 | 含义 | 触发的 Claude Code 事件 |
+|---|---|---|
+| 🔴 **红灯闪烁** | 正在执行工具 | `PreToolUse` |
+| 🟡 **黄灯闪烁** | 正在思考 | `UserPromptSubmit` / `PostToolUse` |
+| 🟢 **绿灯常亮** | 空闲等待 | `Stop` |
+| ⚫ **三灯全灭** | 未运行 | `claude.exe` 进程不在 |
+
+多状态优先级：**红 > 黄 > 绿 > 灰**。多个 Claude 会话并发时，任一会话在忙就显示忙，不会因为一个结束就误判空闲。
+
+## 💻 系统要求
 
 | 要求 | 说明 |
 |---|---|
-| **操作系统** | **仅 Windows**。不支持 macOS / Linux（依赖 DirectComposition + Desktop Duplication，无跨平台计划） |
-| **Claude Code** | 需本机已安装 [Claude Code](https://claude.ai/code) CLI。这是一个**专为 Claude Code 设计**的状态指示器，不支持 Cursor / Copilot / 其他 AI 工具 |
-| **运行时** | 无。单个原生 `.exe`，不依赖 Node / .NET / 任何框架 |
+| **操作系统** | **仅 Windows 10 (2004+) / 11**。**不支持 macOS / Linux**——核心依赖 Windows 独有的 DirectComposition + Desktop Duplication，无跨平台计划。 |
+| **Claude Code** | 需本机已安装 [Claude Code](https://claude.ai/code) CLI。这是**专为 Claude Code 设计**的状态指示器，不支持 Cursor / Copilot / 其他 AI 工具。没装也能运行，但三灯恒灰。 |
+| **运行时** | **无**。单个原生 `.exe`，不依赖 Node / .NET / Electron / 任何框架。 |
 
-## 效果
+## 📦 安装（3 步）
 
-一块悬浮在桌面上的**液态玻璃胶囊**，透过它能看到真实桌面被折射扭曲。中间三盏红绿灯实时反映 Claude Code 状态：
+**1️⃣ 下载**
 
-| 灯 | 含义 | Claude Code 状态 |
-|---|---|---|
-| 🔴 红灯闪烁 | 正在执行工具 | PreToolUse |
-| 🟡 黄灯闪烁 | 正在思考 | UserPromptSubmit / PostToolUse |
-| 🟢 绿灯常亮 | 空闲等待 | Stop |
-| ⚫ 全灭 | 未运行 | Claude Code 进程不在 |
+从 [Releases](../../releases) 下载 `claude-traffic-light.exe`，放到任意目录。
 
-按住玻璃会**果冻形变**（横向变窄、纵向拉长），拖得越快越窄，松手 Q 弹回弹——所有弹簧参数可在 `glass-tuning.json` 里热调。
+**2️⃣ 首次以管理员身份运行**
 
-**整体缩放**：右键「调整大小…」弹出滑块窗，100%~2000% 无极缩放整个挂件（顶边固定、向下扩展），大小和位置自动记忆，下次启动恢复；可一键重置回默认。
+> 右键 exe →「以管理员身份运行」。**仅首次需要**，之后正常双击即可。
 
-## 运行流程
+挂件首次启动会在 exe 同目录释放两个配置文件：`config.json`（位置/缩放）和 `glass-tuning.json`（视觉/形变参数）。
 
-双击 `.exe` 后，挂件按以下顺序启动（**全程不修改系统文件**）：
+**3️⃣ 给释放出的两个文件足够的读写权限**
 
-1. **单实例检查** — 已在运行则直接退出，不会开第二个。
-2. **加载配置** — 读 exe 同目录的 `config.json`（位置/缩放/可见/开机自启）和 `glass-tuning.json`（视觉/形变参数）。`glass-tuning.json` 不存在则**自动生成默认文件**（供用户编辑调参）；`config.json` 不存在则**用内存默认值**（不写盘，等用户操作后才首次生成）。
-3. **同步开机自启** — 若上次开启过，校正注册表里的 exe 路径。
-4. **安装 hook（分支）**：
-   - **装了 Claude Code**（`~/.claude/settings.json` 存在）→ 幂等合并 4 条状态 hook（先备份 `.bak`、只增不删、已存在不重复加）。
-   - **没装 Claude Code**（`~/.claude/` 不存在）→ **静默跳过，不创建任何文件或目录**。
-5. **建窗 + 监测** — 创建透明置顶玻璃窗，watcher 每 100ms 读状态文件、每 3s 检测 `claude.exe` 进程。
+如果挂件装在 **C 盘**（尤其 `C:\Program Files\` 这类受保护目录），系统可能不允许它写配置文件。这时需手动给这两个文件**读取 + 写入**权限：右键文件 →「属性」→「安全」→「编辑」，勾上「写入」。
 
-**装了 Claude Code**：灯随 Claude 工作实时变色（红=执行、黄=思考、绿=空闲），关掉 Claude 后最多 3s 三灯熄灭。
-**没装 Claude Code**：挂件照常显示液态玻璃，但检测不到状态，三灯**恒灰**，且不往 `~/.claude/` 写任何东西。
+> 💡 **一般只有装在 C 盘才需要这一步。** 装在 D 盘等其他盘时，挂件通常能直接释放配置文件、不需要管理员权限，可跳过此步。
 
-## 关于 Claude Code
+![给 config.json / glass-tuning.json 读写权限](assets/admin-permission.png)
 
-这个挂件靠 **Claude Code 的 Hooks 机制**实时感知状态，而非轮询 transcript：
+装好后，打开 Claude Code 开始 vibe coding，灯就会跟着动了。
 
-- **首次运行**检测 `~/.claude/settings.json`：如果存在（本机已装 Claude Code）则幂等合并 4 条 hook 规则（先备份、只增不删、已存在不重复加）；**如果不存在则静默跳过，不创建任何文件或目录**——不在没装 Claude Code 的机器上写任何东西。
-- 每次 Claude Code 触发生命周期事件，hook 直接调挂件自己写状态文件，挂件 100ms 内反映到灯上。
-- **自动灭灯**：每 3s 检测 `claude.exe` 进程，关掉 Claude Code 后最多 3s 三灯熄灭。
-- hook handler 就是挂件 `.exe` 自身（`claude-traffic-light.exe hook <state>`），**零外部依赖**。
+## 🎮 使用
 
-> 如果本机没装 Claude Code，挂件能正常运行，但因检测不到状态会一直保持灰色（三灯全灭）。
+- **拖动** —— 按住可见胶囊拖拽移位（点胶囊外的透明区无反应，不会误拖）。
+- **右键菜单 / 托盘菜单**：
+  | 菜单项 | 作用 |
+  |---|---|
+  | 显示 / 隐藏 | 切换可见，隐藏后可从托盘图标恢复 |
+  | 固定位置 | 锁定后不可拖动，防误触移位 |
+  | 开机自动启动 | 写入注册表 Run 项（用户空间，不弹 UAC），取消即删 |
+  | 调整大小… | 弹滑块窗，100%~2000% 无极缩放 |
+  | 重置大小和位置 | 回 100%、屏幕顶部居中 |
+  | 重启 | 卡帧/异常时一键重启（新实例接管，绝不"关了没开"） |
+  | 退出 | — |
+- **系统托盘** —— 右键托盘图标 = 同款菜单；双击托盘图标 = 显示/隐藏。
+- **调参** —— 编辑 exe 同目录的 `glass-tuning.json`，**保存即热重载（~0.5s 生效）**，无需重启。
 
-## 安装与使用
+---
 
-> ⚠️ **首次启动请以管理员身份运行**：挂件会在 exe 同目录自动生成 `glass-tuning.json`，后续操作中还会写入 `config.json` 和 `~/.claude/settings.json`。若所在目录无写入权限（如某些 `C:\Program Files\` 路径），配置文件将无法创建或更新。
->
-> **三个文件需写入权限**：
->
-> 1. **exe 所在目录** — `config.json` 和 `glass-tuning.json` 在此目录下读写
-> 2. **`~/.claude/settings.json`** — 挂件合并 hook 配置到此文件（幂等，先备份）
->
-> 右键 exe →「以管理员身份运行」即可，**仅首次需要**，之后正常双击打开。
->
-> ![权限管理：右键 exe 以管理员身份运行](assets/admin-permission.png)
+<details>
+<summary><b>🔧 调参：全部参数与默认值</b>（点击展开）</summary>
 
-1. 从 [Releases](../../releases) 下载 `claude-traffic-light.exe`
-2. **首次**右键 exe →「以管理员身份运行」（生成配置文件）；之后正常双击运行即可
-3. 打开 Claude Code，开始 vibe coding
-4. **拖动**：按住可见胶囊拖拽移位（点胶囊外的透明区无反应）
-5. **右键菜单**（顺序同代码）：
-   - **显示/隐藏** — 切换挂件可见，隐藏后从托盘图标恢复
-   - **固定位置** — 锁定后不可拖动，防误触移位
-   - **开机自动启动** — 写入 `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`（不弹 UAC，取消勾选即删记录）
-   - **调整大小…** — 弹出滑块窗，100%~2000% 无极缩放，松手存盘、手动关闭
-   - **重置大小和位置** — 回 100%、屏幕顶部居中
-   - **重启** — 卡帧/异常时一键重启（新实例轮询等旧实例释放锁后接管，绝不"关了没开"）
-   - **退出**
-
-**调参**：编辑 exe 同目录的 `glass-tuning.json`（首次运行自动生成），保存即实时生效，无需重启。
-
-**系统托盘**：启动后任务栏右下角出现挂件图标。**右键托盘图标**弹出与右键窗口相同的菜单；**双击托盘图标**显示/隐藏窗口。
-
-## 写入的文件
-
-首次运行及后续使用中，挂件会在以下位置读/写文件。**不修改任何系统文件。**
-
-| 路径 | 内容 | 说明 |
-|---|---|---|
-| `~/.claude/settings.json` | 4 条 hook 规则 | 首次启动幂等写入（备份 → 合并 → 写回） |
-| `~/.claude/settings.json.bak` | 修改前的原文件 | hook 配置有变动时创建（exe 首次安装/换盘/改名后） |
-| `~/.claude/agent-light/agent-light-state-<session_id>` | 状态词（`idle`/`thinking`/`running`），每会话一个文件 | 每次 Claude Code hook 触发时覆盖写入 |
-| `./config.json` | 位置 + 锁定/可见/缩放/开机自启 | 拖动松手 / 菜单操作 / 调整大小时保存，exe 同目录 |
-| `./glass-tuning.json` | 全部视觉与形变参数 | 首次运行自动生成，手工编辑热重载 |
-
-> 若开启「开机自动启动」，会在 `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` 写一条注册表记录（用户空间，不弹 UAC）。取消勾选后自动删除记录。
-
-## 调参：默认参数与范围
-
-编辑 exe 同目录的 `glass-tuning.json`，**保存即热重载（~500ms 生效），无需重启或重编译**。该文件每台机器各一份、不进版本库；删掉它下次启动会用下表默认值重新生成。
-
-> 默认值的权威来源是 `config/tuning.go` 的 `DefaultTuning()`（编译进 exe）。新用户没有 json，首次运行即得这套默认。
+编辑 exe 同目录的 `glass-tuning.json`，**保存即热重载，无需重启或重编译**。该文件每台机器各一份、不进版本库；删掉它下次启动会用下表默认值重新生成。默认值的权威来源是 `config/tuning.go` 的 `DefaultTuning()`。
 
 **视觉参数**
 
-| 参数 | 中文 | 作用 | 默认 | 建议范围 |
-|---|---|---|---|---|
-| `cornerR` | 圆角半径(px) | 越大越圆 | 48 | 0~48 真圆角矩形；=48 短边已全圆；48~115 趋向跑道形 |
-| `cornerN` | 角部曲率指数 | 2=标准圆，越大越方（苹果味 G2） | 2.1 | 2.0~4.0 |
-| `refractBand` | 折射带深度(px) | 仅距边缘这么深处折射 | 3 | 1~30（小=只极边缘，大=大面积折射）|
-| `edgeSqueeze` | 边缘收缩 | 0=折射最强，1=不折射 | 0.25 | 0~1 |
-| `contrast` | 对比度 | 1=原样 | 1.2 | 0.5~2.0 |
-| `brightness` | 亮度 | 1=原样，<1 变暗 | 0.9 | 0.5~2.0 |
-| `saturate` | 饱和度 | 0=灰，1=原样 | 1.5 | 0~3 |
-| `lampR` | 灯半径(px) | 灯大小 | 19 | 6~30（>32 邻灯重叠）|
-| `lampGap` | 灯间距(px) | 红↔黄↔绿中心距 | 64 | 38~90（<2×lampR 重叠，>95 出胶囊）|
-| `glow` | 点亮外发光 | 亮灯光晕强度 | 0 | 0~1（注：加法叠加，调大且背景偏暗时会洗白成光环，慎用）|
+| 参数 | 作用 | 默认 | 建议范围 |
+|---|---|---|---|
+| `cornerR` | 圆角半径(px)，越大越圆 | 48 | 0~115 |
+| `cornerN` | 角部曲率指数，2=标准圆，越大越方（苹果味 G2） | 2.1 | 2.0~4.0 |
+| `refractBand` | 折射带深度(px)，仅距边缘这么深处折射 | 3 | 1~30 |
+| `edgeSqueeze` | 边缘收缩，0=折射最强，1=不折射 | 0.25 | 0~1 |
+| `contrast` | 对比度 | 1.2 | 0.5~2.0 |
+| `brightness` | 亮度 | 0.9 | 0.5~2.0 |
+| `saturate` | 饱和度 | 1.5 | 0~3 |
+| `lampR` | 灯半径(px) | 19 | 6~30 |
+| `lampGap` | 灯间距(px)，红↔黄↔绿中心距 | 64 | 38~90 |
+| `glow` | 点亮外发光强度 | 0 | 0~1 |
 
 **物理形变参数**
 
-| 参数 | 中文 | 作用 | 默认 | 建议范围 |
-|---|---|---|---|---|
-| `springK` | 弹簧刚度 | 越大回弹越快越硬 | 120 | 30~300 |
-| `springC` | 阻尼 | 越小过冲/弹动越明显 | 8 | 1~20 |
-| `steadyX` | 稳态水平缩放 | <1 静止时偏窄 | 0.91 | 0.8~1.04 |
-| `steadyY` | 稳态垂直缩放 | >1 静止时偏长 | 1.11 | 0.9~1.30 |
-| `pressX` | 按下水平缩放 | <1 按下变窄 | 0.82 | 0.5~1.04 |
-| `pressY` | 按下垂直缩放 | >1 按下变高 | 1.22 | 0.8~1.30 |
-| `dragK` | 拖动形变力度 | 越大拖时形变越猛 | 0.02 | 0.001~0.05 |
-| `dragMin` | 拖动形变下限 | 0.5=最多缩到 50% | 0.5 | 0.3~1.0 |
-| `releaseImpulse` | 松手过冲倍率 | >1 强化回弹 | 1.5 | 1.0~3.0 |
+| 参数 | 作用 | 默认 | 建议范围 |
+|---|---|---|---|
+| `springK` | 弹簧刚度，越大回弹越快越硬 | 120 | 30~300 |
+| `springC` | 阻尼，越小过冲/弹动越明显 | 8 | 1~20 |
+| `steadyX` | 稳态水平缩放，<1 静止偏窄 | 0.91 | 0.8~1.04 |
+| `steadyY` | 稳态垂直缩放，>1 静止偏长 | 1.11 | 0.9~1.30 |
+| `pressX` | 按下水平缩放，<1 变窄 | 0.82 | 0.5~1.04 |
+| `pressY` | 按下垂直缩放，>1 变高 | 1.22 | 0.8~1.30 |
+| `dragK` | 拖动形变力度，越大形变越猛 | 0.02 | 0.001~0.05 |
+| `dragMin` | 拖动形变下限，0.5=最多缩到 50% | 0.5 | 0.3~1.0 |
+| `releaseImpulse` | 松手过冲倍率，>1 强化回弹 | 1.5 | 1.0~3.0 |
 
-> ⚠️ **形变有硬上限，超了会被画布裁切**：画布 240×144、玻璃 230×96，所以任意时刻 **水平缩放 ≤ 240/230 ≈ 1.04、垂直缩放 ≤ 144/96 = 1.50**。`steadyY` 叠加 `pressY` 与松手过冲的峰值一旦超过 1.50，胶囊顶/底会被切平。竖向拖动已内置 `maxDragScaleY=1.4` 钳制防止撞墙。要更夸张的拉伸，得改 `ui/glass.hlsl` 的 `CANVAS`/`PILL`（涉及窗口重建，需重编译，非热重载）。
+> ⚠️ **形变有硬上限**：画布 240×144、玻璃 230×96，所以任意时刻水平缩放 ≤ 1.04、垂直缩放 ≤ 1.50，超了胶囊顶/底会被画布切平。竖向拖动已内置 `maxDragScaleY=1.4` 钳制防撞墙。要更夸张的拉伸得改 `ui/glass.hlsl` 的 `CANVAS`/`PILL`（需重编译）。
 
-## 架构
+</details>
 
-```
-main.go             入口：单实例互斥（--restarted 轮询） → 加载配置 → 开机自启同步 → 安装 hook（幂等：exe真名） → 创建窗口 → 启动监测
-hookinstall.go      把状态 hook 幂等合并进 ~/.claude/settings.json
-config/             配置读写（config.json 位置/缩放/开机自启 + glass-tuning.json 视觉热重载）
-  autostart.go      注册表 HKCU Run 读写删 + 路径自校正（开机自动启动）
-state/              四态枚举（灰/绿/黄/红）及优先级
-watcher/            每 100ms 聚合每会话状态文件（任一会话忙=忙）+ 每 3s 进程检测兜底灭灯（procmon.go）
-ui/
-  window.go           DComp 透明置顶窗、消息循环、自接管鼠标拖动、弹簧形变状态机、图标加载
-  render.go           D3D11 渲染管线：device/swapchain/shader 编译 + 每帧绘制（动态 viewport）
-  glass.hlsl          像素 shader：超椭圆 SDF 限定形状、shuding 折射核、三灯叠加
-  capture.go          Desktop Duplication 抓取桌面纹理（支持随缩放 Resize + 会话切换失效后限速重建）
-  com.go              D3D11/DXGI/DComp COM 绑定（含 swapchain ResizeBuffers）
-  win32.go            Win32 API 绑定与常量
-  physics.go          二阶弹簧物理（每帧 Euler 积分，驱动形变）
-  sizedialog.go       调整大小滑块窗（comctl32 trackbar，100%~2000% 无极缩放）
-```
+<details>
+<summary><b>🏗️ 架构与技术原理</b>（点击展开）</summary>
 
-### 状态探测：Claude Code Hooks
-
-不轮询 transcript。靠 4 个生命周期 hook 实时推送：
-
-```
-UserPromptSubmit → 黄（思考中）
-PostToolUse      → 黄（思考中）
-PreToolUse       → 红（执行中）
-Stop             → 绿（空闲）
-```
-
-Hook 以 exec form 安装（`command`=exe 路径 + `args`，直接 spawn 不经 shell）。每个 hook 从 stdin JSON 读取 `session_id`，写 **每会话独立状态文件** `~/.claude/agent-light/agent-light-state-<sid>`。watcher 每 100ms 聚合所有会话文件：**任一会话忙 → 全局忙**（防多 agent 并发时一个结束误拉绿）；全 idle → 绿；无文件 → 灰。
-
-- **忙态只信 hook 内容**：`running`→红、`thinking`→黄、`idle`→绿，不做时间窗口超时降级（长思考无工具调用→无 hook→若按超时会被误降绿）
-- **进程检测兜底灭灯**：每 3s 用 `CreateToolhelp32Snapshot` 检测 `claude.exe`，不在则强制灰——崩溃/强杀/开机残留统一靠这条回灰，根治开机卡黄灯
-- **定时清理（10min）**：每 30s 清理超 10min 未更新的残留文件（纯磁盘回收）
-
-### 渲染管线
+### 渲染管线（方案核心）
 
 ```
 Desktop Duplication 抓整屏桌面纹理（GPU 常驻）
-  → HLSL 超椭圆 SDF + shuding 折射核（中心清晰、边缘强折射）
-  → DXGI swapchain → DirectComposition 透明置顶窗
-WDA_EXCLUDEFROMCAPTURE 排除自身捕获，断开反馈循环
+  → HLSL 超椭圆 SDF + 折射核（中心清晰、边缘强折射）
+  → DXGI 合成 swapchain → DirectComposition 透明置顶窗
+窗口设 WDA_EXCLUDEFROMCAPTURE 把自己从抓取中排除，断开「自己折射自己」反馈
 ```
 
-### 弹簧形变
+为什么不用 CSS `backdrop-filter` / WebView2？因为它只能采样 WebView 文档内部，**采不到操作系统桌面** → 旧版只能显示成黑框。Windows 也没有「对窗口背景做折射位移」的系统 API（DWM Acrylic 只有模糊无折射）。唯一出路就是自取桌面像素 + 自写折射 shader。
 
-二阶弹簧（刚度 K + 阻尼 C）每帧 Euler 积分，主线程鼠标事件设目标，渲染线程每帧推进：
+### 模块分层
 
-- **按下**：横向窄 + 纵向长（`pressX/pressY`）
-- **稳态**：稍窄稍高（`steadyX/steadyY`）
-- **拖动**：按速度叠加变窄（`dragK`，下限 `dragMin`）
-- **松手**：回到稳态 + 基于速度的过冲冲量（`releaseImpulse`）
+```
+main.go             入口：单实例互斥 → 加载配置 → 开机自启同步 → 安装 hook → 建窗 + 监测
+hookinstall.go      把状态 hook 幂等合并进 ~/.claude/settings.json（先备份、只增不删）
+config/             config.json（位置/缩放/自启）+ glass-tuning.json（视觉热重载）
+  autostart.go      注册表 HKCU Run 读写删 + 路径自校正
+state/              四态枚举（灰/绿/黄/红）及优先级聚合
+watcher/            每 100ms 聚合每会话状态文件（任一忙=忙）+ 每 3s 进程检测兜底灭灯
+ui/
+  window.go           DComp 透明置顶窗、消息循环、自接管鼠标拖动、弹簧形变状态机
+  render.go           D3D11 渲染管线：device/swapchain/shader 编译 + 每帧绘制
+  glass.hlsl          像素 shader：超椭圆 SDF 限定形状 + 折射核 + 三灯叠加
+  capture.go          Desktop Duplication 抓桌面纹理（随缩放 Resize + 失效后限速重建）
+  com.go              D3D11/DXGI/DComp COM 绑定
+  win32.go            Win32 API 绑定与常量
+  physics.go          二阶弹簧物理（每帧 Euler 积分驱动形变）
+  sizedialog.go       调整大小滑块窗（comctl32 trackbar）
+```
 
-所有参数在 `glass-tuning.json` 中可热调。
+### 状态探测：Claude Code Hooks（实时驱动）
 
-## 构建
+不轮询 transcript。挂件启动时把 4 个生命周期 hook 幂等合并进 `~/.claude/settings.json`，每个 hook 以 exec form 直接调挂件自己 `claude-traffic-light.exe hook <state>`，从 stdin JSON 读 `session_id` 写**每会话独立状态文件** `~/.claude/agent-light/agent-light-state-<sid>`。watcher 每 100ms 聚合所有会话文件取最高优先级。
+
+- **忙态只信 hook 内容**，不做时间窗口超时降级（长思考无工具调用→无 hook，按超时会被误判空闲）。
+- **进程检测兜底灭灯**：每 3s 用 `CreateToolhelp32Snapshot` 检测 `claude.exe`，不在则强制灰——崩溃/强杀/开机残留统一靠这条回灰。
+- **hook handler 就是挂件自己**，零外部依赖（不像别的方案要 node）。
+
+</details>
+
+<details>
+<summary><b>📝 写入的文件</b>（点击展开）</summary>
+
+挂件**不修改任何系统文件**。读/写位置如下：
+
+| 路径 | 内容 | 说明 |
+|---|---|---|
+| `~/.claude/settings.json` | 4 条 hook 规则 | 首次启动幂等写入（备份 → 合并 → 写回）；`~/.claude/` 不存在则**静默跳过**，绝不创建 |
+| `~/.claude/settings.json.bak` | 修改前原文件 | hook 配置有变动时创建 |
+| `~/.claude/agent-light/agent-light-state-<sid>` | 状态词，每会话一文件 | 每次 hook 触发覆盖写入 |
+| `./config.json` | 位置/锁定/可见/缩放/自启 | 拖动/菜单/缩放时保存，exe 同目录 |
+| `./glass-tuning.json` | 全部视觉与形变参数 | 首次运行自动生成，手工编辑热重载 |
+
+开启「开机自动启动」时会在 `HKCU\...\Run` 写一条注册表记录（用户空间，不弹 UAC），取消即删。
+
+</details>
+
+<details>
+<summary><b>🛠️ 从源码构建</b>（点击展开）</summary>
 
 需要 Go 工具链 + Windows：
 
@@ -199,38 +204,26 @@ WDA_EXCLUDEFROMCAPTURE 排除自身捕获，断开反馈循环
 # 调试（带控制台看输出，不产生 exe）
 go run .
 
-# 编译 exe（本地试装 / 发行，唯一一条；dist 不存在先建 mkdir dist）
+# 编译 exe（唯一一条命令，四件防护一次带齐）
 go build -trimpath -buildvcs=false -ldflags="-H windowsgui" -o dist/claude-traffic-light.exe .
 
 # 测试
 go test ./...
 ```
 
-> **编译铁律**：调试用 `go run .`（不产 exe）；凡是产出 exe 就用上面唯一那条命令，四件防护一次带齐——`-trimpath`（清本机路径/用户名）、`-buildvcs=false`（清 git 信息）、`-ldflags="-H windowsgui"`（无黑窗）、`-o dist/`（隔离），并自动嵌入图标+版本信息。**严禁 `-s -w`**（触发 Wacatac 误报）、严禁加壳。完整流程见 [docs/编译构建发行.md](docs/编译构建发行.md)。
+> **编译铁律**：调试用 `go run .`；产 exe 只用上面那条——`-trimpath`（清本机路径/用户名）、`-buildvcs=false`（清 git 信息）、`-ldflags="-H windowsgui"`（无黑窗）、`-o dist/`（隔离），并自动嵌入 `rsrc_windows_amd64.syso`（图标+版本信息）。**严禁 `-s -w`**（触发杀软误报）、**严禁加壳**。完整流程见 [docs/编译构建发行.md](docs/编译构建发行.md)。
 
-### exe 图标 + 版本信息（资源管理器属性）
+**录屏演示**：正常 exe 对 OBS 等录屏软件隐形（`WDA_EXCLUDEFROMCAPTURE` 设计使然）。带 `--demo` 启动可解除排除让 OBS 录到，但玻璃会折射到自己。想要最干净的演示画面，用手机/相机拍屏幕即可。
 
-窗口/托盘图标由 `main.go` 的 `//go:embed claude-traffic-light.ico` 在运行时加载；而 **exe 文件图标 + 资源管理器属性里的版本信息**（产品名/版本/署名）是另一套——靠 `rsrc_windows_amd64.syso` 在**链接时**嵌入。
+</details>
 
-- 该 syso 由 **goversioninfo** 用 `versioninfo.json`（版本信息源）+ ico **合成一个**生成；`versioninfo.json` 与 syso **均已入库**，克隆后直接 `go build` 即带图标+版本信息。
-- **只在改图标/版本号/署名时**重新生成：
-  ```powershell
-  goversioninfo -icon=claude-traffic-light.ico -o=rsrc_windows_amd64.syso
-  ```
-  （工具装一次：`go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@latest`）
-- ⚠️ **文件名必须带 `_windows_amd64` 后缀**，go build 才自动按平台挑它。**严禁**再生成第二个含资源段的 `.syso`（如 `rsrc.syso`）——两个都含资源段 → 链接报 `too many .rsrc sections` 构建失败。
-
-## 技术栈
-
-Go + D3D11 + DirectComposition + HLSL（无 WebView2、无 Electron、无 CGO）
-
-## 限制 / 范围外
+## 🚧 限制 / 范围外
 
 - **仅 Windows**，不支持 macOS / Linux
 - **仅 Claude Code**，不支持其他 AI 工具
-- 点击穿透：DComp 透明置顶窗无法穿透到下层，胶囊外透明区会挡住下层窗口点击（已知限制）
+- **点击穿透**：DComp 透明置顶窗无法穿透到下层，胶囊外透明区会挡住下层窗口点击（已知限制）
 - 无声音提示、无多显示器自动定位
 
-## 许可
+## 📄 许可
 
-MIT
+[MIT](LICENSE)
