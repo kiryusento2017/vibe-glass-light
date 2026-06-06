@@ -62,6 +62,14 @@ func main() {
 	// 自动把状态 hook 合并进 ~/.claude/settings.json（幂等、只增不删、先备份）
 	installHooks()
 
+	// --demo：跳过 WDA_EXCLUDEFROMCAPTURE，让 OBS 等录屏软件能录到挂件
+	// （代价：自家桌面抓取也会抓到自己 → 玻璃内自折射镜像）。仅供录制演示。
+	for _, a := range os.Args[1:] {
+		if a == "--demo" {
+			ui.DemoMode = true
+		}
+	}
+
 	ui.SetProcessDPIAware() // 进程级 DPI 感知（创建窗口前，替代 manifest）
 	win := ui.New(cfgPath, cfg, icoData)
 

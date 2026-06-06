@@ -40,6 +40,11 @@ const maxDragScaleY = 1.4
 // wndProc 是包级回调，通过它访问实例。
 var theWindow *Window
 
+// DemoMode 为 true 时跳过 SetWindowDisplayAffinity(WDA_EXCLUDEFROMCAPTURE)，
+// 使窗口可被 OBS 等屏幕录制软件捕获。由 main.go 解析 --demo 命令行参数设置。
+// 仅供录制演示用：正常运行务必保持 false，否则玻璃会折射到自己（无限镜像）。
+var DemoMode bool
+
 // Window 管理浮动挂件窗口：主线程跑消息循环，渲染在独立 goroutine，
 // 拖动的系统模态循环挡不住渲染。
 type Window struct {
@@ -133,8 +138,12 @@ func New(cfgPath string, cfg config.Config, iconData []byte) *Window {
 	)
 	w.hwnd = windows.HWND(hwnd)
 
-	// 命门：把窗口从屏幕捕获中排除，断开「自己折射自己」反馈
-	procSetWindowDisplayAffinity.Call(hwnd, wdaExcludeFromCapture)
+	// 命门：把窗口从屏幕捕获中排除，断开「自己折射自己」反馈。
+	// 演示模式（--demo）下跳过，让 OBS 等录屏软件能录到挂件——代价是自家
+	// Desktop Duplication 也会抓到自己，玻璃内出现自折射镜像，仅供录制演示用。
+	if !DemoMode {
+		procSetWindowDisplayAffinity.Call(hwnd, wdaExcludeFromCapture)
+	}
 
 	// 运行时加载嵌入的 .ico（32px 图标从 ico 数据解析），设窗口 + 托盘
 	hIcon := loadIconFromICO(iconData)
