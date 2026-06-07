@@ -70,9 +70,29 @@ func installHooks() {
 	os.WriteFile(settingsPath, out, 0644)
 }
 
+// isGlightHook 判断一条 hook 条目是否属于任意版本的 Glight/claude-traffic-light。
+// 双重判据：exe basename 符合命名规律 + args 是挂件约定的 ["hook", state]。
+func isGlightHook(cmd string, args []interface{}) bool {
+	base := strings.ToLower(filepath.Base(cmd))
+	nameOK := base == "claude-traffic-light.exe" ||
+		(strings.HasPrefix(base, "glight-v") && strings.HasSuffix(base, "-windows-amd64.exe"))
+	if !nameOK {
+		return false
+	}
+	if len(args) < 2 {
+		return false
+	}
+	first, _ := args[0].(string)
+	second, _ := args[1].(string)
+	return first == "hook" && (second == "idle" || second == "thinking" || second == "running")
+}
+
 // mergeHookEvent 在 hooks[event] 里插入/更新挂件自己的 hook 组，返回是否有改动。
-// 靠 command 的 basename 识别「我加的」：已存在且路径相同→不动；路径变了→更新；
-// 不存在→追加。别人的 hook 组完全不碰。
+// 识别规则：isGlightHook 双重判据（exe 名 + args 约定）。
+// - 非 Glight group → 原样保留
+// - Glight group 且 basename == 当前 exe → 保留（路径变则更新）
+// - Glight group 且 basename != 当前 exe（旧版本）→ 删除
+// - 当前 exe 不存在 → 末尾追加
 func mergeHookEvent(hooks map[string]interface{}, event, state string, matcher bool, exe string) bool {
 	ourCmd := map[string]interface{}{
 		"type":    "command",
@@ -87,28 +107,82 @@ func mergeHookEvent(hooks map[string]interface{}, event, state string, matcher b
 	}
 
 	arr, _ := hooks[event].([]interface{})
-	for i, g := range arr {
+	newArr := make([]interface{}, 0, len(arr))
+	foundCurrent := false
+	changed := false
+
+	for _, g := range arr {
 		grp, ok := g.(map[string]interface{})
 		if !ok {
+			newArr = append(newArr, g)
 			continue
 		}
 		inner, _ := grp["hooks"].([]interface{})
+
+		// 判断这个 group 里的所有 hook 是否都属于 Glight
+		allGlight := len(inner) > 0
 		for _, h := range inner {
 			hm, ok := h.(map[string]interface{})
 			if !ok {
-				continue
+				allGlight = false
+				break
 			}
-			cmd, _ := hm["command"].(string)
-			if strings.EqualFold(filepath.Base(cmd), filepath.Base(exe)) {
-				if cmd == exe {
-					return false // 已存在且路径未变，无需改动
-				}
-				arr[i] = ourGroup // 路径变了（如换 U 盘盘符），更新自己这条
-				hooks[event] = arr
-				return true
+			hcmd, _ := hm["command"].(string)
+			hargs, _ := hm["args"].([]interface{})
+			if !isGlightHook(hcmd, hargs) {
+				allGlight = false
+				break
 			}
 		}
+		if !allGlight {
+			newArr = append(newArr, g) // 非 Glight group，不动
+			continue
+		}
+
+		// 全是 Glight hook：看 basename 是否是当前 exe
+		isCurrentExe := false
+		for _, h := range inner {
+			hm, _ := h.(map[string]interface{})
+			hcmd, _ := hm["command"].(string)
+			if strings.EqualFold(filepath.Base(hcmd), filepath.Base(exe)) {
+				isCurrentExe = true
+				break
+			}
+		}
+		if !isCurrentExe {
+			changed = true // 旧版本 group，删掉（不 append）
+			continue
+		}
+
+		// 当前 exe 的 group
+		if foundCurrent {
+			changed = true // 重复条目，删掉多余的
+			continue
+		}
+		foundCurrent = true
+		// 检查路径是否已正确
+		pathOK := false
+		for _, h := range inner {
+			hm, _ := h.(map[string]interface{})
+			if hcmd, _ := hm["command"].(string); hcmd == exe {
+				pathOK = true
+				break
+			}
+		}
+		if pathOK {
+			newArr = append(newArr, g) // 路径未变，原样保留
+		} else {
+			newArr = append(newArr, ourGroup) // 路径变了（如换 U 盘盘符），更新
+			changed = true
+		}
 	}
-	hooks[event] = append(arr, ourGroup) // 没有则追加
-	return true
+
+	if !foundCurrent {
+		newArr = append(newArr, ourGroup)
+		changed = true
+	}
+	if changed {
+		hooks[event] = newArr
+	}
+	return changed
 }
